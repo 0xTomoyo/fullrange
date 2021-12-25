@@ -7,11 +7,11 @@ import {IUniswapV3Pool} from "@uniswap/v3-core/contracts/interfaces/IUniswapV3Po
 contract FullRange {
     address public immutable factory;
 
-    address public immutable WETH9;
+    address public immutable weth;
 
-    constructor(address _factory, address _WETH9) {
+    constructor(address _factory, address _weth) {
         factory = _factory;
-        WETH9 = _WETH9;
+        weth = _weth;
     }
 
     function createAndInitializePoolIfNecessary(
@@ -20,15 +20,14 @@ contract FullRange {
         uint24 fee,
         uint160 sqrtPriceX96
     ) external payable returns (address pool) {
-        require(token0 < token1);
+        require(token0 < token1, "Invalid token order");
         pool = IUniswapV3Factory(factory).getPool(token0, token1, fee);
 
         if (pool == address(0)) {
             pool = IUniswapV3Factory(factory).createPool(token0, token1, fee);
             IUniswapV3Pool(pool).initialize(sqrtPriceX96);
         } else {
-            (uint160 sqrtPriceX96Existing, , , , , , ) = IUniswapV3Pool(pool)
-                .slot0();
+            (uint160 sqrtPriceX96Existing, , , , , , ) = IUniswapV3Pool(pool).slot0();
             if (sqrtPriceX96Existing == 0) {
                 IUniswapV3Pool(pool).initialize(sqrtPriceX96);
             }

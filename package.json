@@ -1,0 +1,31 @@
+{
+  "name": "fullrange",
+  "version": "1.0.0",
+  "description": "Full Range",
+  "license": "GPL-3.0",
+  "homepage": "https://github.com/0xTomoyo/fullrange",
+  "bugs": "https://github.com/0xTomoyo/fullrange/issues",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/0xTomoyo/fullrange.git"
+  },
+  "author": {
+    "name": "0xTomoyo",
+    "email": "0xtomoyo@protonmail.com",
+    "url": "https://github.com/0xTomoyo"
+  },
+  "files": [
+    "*.sol"
+  ],
+  "devDependencies": {
+    "prettier": "^2.5.1",
+    "prettier-plugin-solidity": "^1.0.0-beta.19",
+    "solhint": "^3.3.6",
+    "solhint-plugin-prettier": "^0.0.5"
+  },
+  "scripts": {
+    "lint": "yarn prettier && yarn solhint",
+    "prettier": "prettier --config ./.prettierrc.json --ignore-path ./.gitignore --check \"src/**/*.sol\" --write",
+    "solhint": "solhint --config ./.solhint.json --ignore-path ./.gitignore \"src/**/*.sol\" --fix"
+  }
+}
