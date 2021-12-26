@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity ^0.8.10;
 
-import {IUniswapV3Pool} from "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
-import {IFullRange} from "./interfaces/IFullRange.sol";
+import {FullRangeDescriptor} from "./libraries/FullRangeDescriptor.sol";
 
 /// @author Adapted from Rari-Capital https://github.com/Rari-Capital/solmate/blob/main/src/erc20/ERC20.sol
 contract FullRangePair {
@@ -29,9 +28,8 @@ contract FullRangePair {
 
     bytes32 internal immutable INITIAL_DOMAIN_SEPARATOR;
 
-    constructor(address _fullRange) {
-        fullRange = _fullRange;
-
+    constructor() {
+        fullRange = msg.sender;
         INITIAL_CHAIN_ID = block.chainid;
         INITIAL_DOMAIN_SEPARATOR = computeDomainSeparator();
     }
@@ -121,12 +119,11 @@ contract FullRangePair {
     }
 
     function symbol() external view returns (string memory) {
-        IUniswapV3Pool pool = IUniswapV3Pool(IFullRange(fullRange).getPool(address(this)));
-        return "Uniswap V3 USDC/WETH - 0.3%";
+        return FullRangeDescriptor.constructSymbol(fullRange);
     }
 
     function name() external view returns (string memory) {
-        return "Hello";
+        return FullRangeDescriptor.constructName(fullRange);
     }
 
     function DOMAIN_SEPARATOR() public view returns (bytes32) {
@@ -138,7 +135,7 @@ contract FullRangePair {
             keccak256(
                 abi.encode(
                     keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"),
-                    keccak256(bytes("Uniswap V3")),
+                    keccak256(bytes("Uniswap V3 LP")),
                     keccak256(bytes("1")),
                     block.chainid,
                     address(this)

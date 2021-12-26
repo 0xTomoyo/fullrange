@@ -1,3 +1,4 @@
 ds-test/=lib/ds-test/src/
 @uniswap/v3-core/=lib/v3-core/
+@uniswap/lib/=lib/solidity-lib/
 @rari-capital/solmate/=lib/solmate/src/
