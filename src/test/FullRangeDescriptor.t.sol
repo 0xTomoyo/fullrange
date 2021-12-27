@@ -18,7 +18,33 @@ contract MockFullRangeDescriptor {
         symbol = FullRangeDescriptor.constructSymbol(address(this));
         getPool[address(this)] = address(0);
     }
+
+    function toAsciiString(address addr, uint256 len) external pure returns (string memory) {
+        return FullRangeDescriptor.toAsciiString(addr, len);
+    }
 }
+
+contract MockCompliantERC20 {
+    string public name;
+    string public symbol;
+
+    constructor(string memory name_, string memory symbol_) {
+        name = name_;
+        symbol = symbol_;
+    }
+}
+
+contract MockNonCompliantERC20 {
+    bytes32 public name;
+    bytes32 public symbol;
+
+    constructor(bytes32 name_, bytes32 symbol_) {
+        name = name_;
+        symbol = symbol_;
+    }
+}
+
+contract MockOptionalERC20 {}
 
 contract FullMathTest is DSTest {
     struct MetadataTestCase {
@@ -66,5 +92,93 @@ contract FullMathTest is DSTest {
             assertEq(fullRangeDescriptor.constructSymbol(metadataTestCase.pool), metadataTestCase.symbol);
             assertEq(fullRangeDescriptor.constructName(metadataTestCase.pool), metadataTestCase.name);
         }
+    }
+
+    function testTokenSymbol() public {
+        address token;
+
+        token = address(new MockCompliantERC20("token name", "tn"));
+        assertEq(FullRangeDescriptor.tokenSymbol(token), "tn");
+
+        token = address(new MockNonCompliantERC20("token name", "tn"));
+        assertEq(FullRangeDescriptor.tokenSymbol(token), "tn");
+
+        token = address(new MockNonCompliantERC20("", ""));
+        assertEq(FullRangeDescriptor.tokenSymbol(token), FullRangeDescriptor.toAsciiString(token, 6));
+
+        token = address(new MockOptionalERC20());
+        assertEq(FullRangeDescriptor.tokenSymbol(token), FullRangeDescriptor.toAsciiString(token, 6));
+
+        token = address(0);
+        assertEq(FullRangeDescriptor.tokenSymbol(token), FullRangeDescriptor.toAsciiString(token, 6));
+
+        token = address(new MockCompliantERC20("", ""));
+        assertEq(FullRangeDescriptor.tokenSymbol(token), FullRangeDescriptor.toAsciiString(token, 6));
+    }
+
+    function testFeeToPercentString() public {
+        assertEq(FullRangeDescriptor.feeToPercentString(0), "0%");
+
+        assertEq(FullRangeDescriptor.feeToPercentString(1), "0.0001%");
+
+        assertEq(FullRangeDescriptor.feeToPercentString(30), "0.003%");
+
+        assertEq(FullRangeDescriptor.feeToPercentString(33), "0.0033%");
+
+        assertEq(FullRangeDescriptor.feeToPercentString(500), "0.05%");
+
+        assertEq(FullRangeDescriptor.feeToPercentString(2500), "0.25%");
+
+        assertEq(FullRangeDescriptor.feeToPercentString(3000), "0.3%");
+
+        assertEq(FullRangeDescriptor.feeToPercentString(10000), "1%");
+
+        assertEq(FullRangeDescriptor.feeToPercentString(17000), "1.7%");
+
+        assertEq(FullRangeDescriptor.feeToPercentString(100000), "10%");
+
+        assertEq(FullRangeDescriptor.feeToPercentString(150000), "15%");
+
+        assertEq(FullRangeDescriptor.feeToPercentString(102000), "10.2%");
+
+        assertEq(FullRangeDescriptor.feeToPercentString(1000000), "100%");
+
+        assertEq(FullRangeDescriptor.feeToPercentString(1005000), "100.5%");
+
+        assertEq(FullRangeDescriptor.feeToPercentString(10000000), "1000%");
+
+        assertEq(FullRangeDescriptor.feeToPercentString(12300000), "1230%");
+    }
+
+    function testToAsciiString() public {
+        assertEq(FullRangeDescriptor.toAsciiString(address(0), 40), "0000000000000000000000000000000000000000");
+
+        address example = 0xC257274276a4E539741Ca11b590B9447B26A8051;
+
+        assertEq(FullRangeDescriptor.toAsciiString(example, 40), "C257274276A4E539741CA11B590B9447B26A8051");
+
+        try fullRangeDescriptor.toAsciiString(example, 39) {
+            fail();
+        } catch Error(string memory error) {
+            assertEq(error, "INVALID_LEN");
+        }
+
+        try fullRangeDescriptor.toAsciiString(example, 42) {
+            fail();
+        } catch Error(string memory error) {
+            assertEq(error, "INVALID_LEN");
+        }
+
+        try fullRangeDescriptor.toAsciiString(example, 0) {
+            fail();
+        } catch Error(string memory error) {
+            assertEq(error, "INVALID_LEN");
+        }
+
+        assertEq(FullRangeDescriptor.toAsciiString(example, 4), "C257");
+
+        assertEq(FullRangeDescriptor.toAsciiString(example, 10), "C257274276");
+
+        assertEq(FullRangeDescriptor.toAsciiString(example, 16), "C257274276A4E539");
     }
 }

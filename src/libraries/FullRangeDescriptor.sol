@@ -112,25 +112,8 @@ library FullRangeDescriptor {
         return generateDecimalString(params);
     }
 
-    // calls an external view token contract method that returns a symbol or name, and parses the output into a string
-    function callAndParseStringReturn(address token, bytes4 selector) private view returns (string memory) {
-        (bool success, bytes memory data) = token.staticcall(abi.encodeWithSelector(selector));
-        // if not implemented, or returns empty data, return empty string
-        if (!success || data.length == 0) {
-            return "";
-        }
-        // bytes32 data always has length 32
-        if (data.length == 32) {
-            bytes32 decoded = abi.decode(data, (bytes32));
-            return bytes32ToString(decoded);
-        } else if (data.length > 64) {
-            return abi.decode(data, (string));
-        }
-        return "";
-    }
-
     // converts an address to the uppercase hex string, extracting only len bytes (up to 20, multiple of 2)
-    function toAsciiString(address addr, uint256 len) private pure returns (string memory) {
+    function toAsciiString(address addr, uint256 len) internal pure returns (string memory) {
         unchecked {
             require(len % 2 == 0 && len > 0 && len <= 40, "INVALID_LEN");
 
@@ -148,6 +131,23 @@ library FullRangeDescriptor {
             }
             return string(s);
         }
+    }
+
+    // calls an external view token contract method that returns a symbol or name, and parses the output into a string
+    function callAndParseStringReturn(address token, bytes4 selector) private view returns (string memory) {
+        (bool success, bytes memory data) = token.staticcall(abi.encodeWithSelector(selector));
+        // if not implemented, or returns empty data, return empty string
+        if (!success || data.length == 0) {
+            return "";
+        }
+        // bytes32 data always has length 32
+        if (data.length == 32) {
+            bytes32 decoded = abi.decode(data, (bytes32));
+            return bytes32ToString(decoded);
+        } else if (data.length > 64) {
+            return abi.decode(data, (string));
+        }
+        return "";
     }
 
     function bytes32ToString(bytes32 x) private pure returns (string memory) {
