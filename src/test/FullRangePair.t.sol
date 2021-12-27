@@ -2,10 +2,20 @@
 pragma solidity ^0.8.10;
 
 import {DSTest} from "ds-test/test.sol";
+import {FullRange} from "../FullRange.sol";
 import {FullRangePair} from "../FullRangePair.sol";
-import {FullRangePairUser} from "./utils/users/FullRangePairUser.sol";
+import {FullRangePairUser} from "./utils/FullRangePairUser.sol";
+import {FACTORY, WETH, USDC, WBTC, DAI, FeeAmount} from "./utils/Constants.sol";
 
 contract FullRangePairTest is DSTest {
+    struct MetadataTestCase {
+        address token0;
+        address token1;
+        uint24 fee;
+        string symbol;
+        string name;
+    }
+
     FullRangePair public fullRangePair;
 
     function setUp() public {
@@ -18,6 +28,33 @@ contract FullRangePairTest is DSTest {
 
     function testFullRange() public {
         assertEq(fullRangePair.fullRange(), address(this));
+    }
+
+    function testMetadata() public {
+        try fullRangePair.symbol() {
+            fail();
+        } catch {}
+        try fullRangePair.name() {
+            fail();
+        } catch {}
+
+        FullRange fullRange = new FullRange(FACTORY, WETH);
+        MetadataTestCase[4] memory metadataTestCases = [
+            MetadataTestCase(USDC, WETH, FeeAmount.MEDIUM, "UNI-V3-USDC/WETH-0.3%", "Uniswap V3 USDC/WETH 0.3% LP"),
+            MetadataTestCase(USDC, WETH, FeeAmount.HIGH, "UNI-V3-USDC/WETH-1%", "Uniswap V3 USDC/WETH 1% LP"),
+            MetadataTestCase(DAI, USDC, FeeAmount.LOW, "UNI-V3-DAI/USDC-0.05%", "Uniswap V3 DAI/USDC 0.05% LP"),
+            MetadataTestCase(WBTC, USDC, FeeAmount.MEDIUM, "UNI-V3-WBTC/USDC-0.3%", "Uniswap V3 WBTC/USDC 0.3% LP")
+        ];
+        for (uint256 i = 0; i < metadataTestCases.length; i++) {
+            MetadataTestCase memory metadataTestCase = metadataTestCases[i];
+            (address pair, ) = fullRange.createPair(
+                metadataTestCase.token0,
+                metadataTestCase.token1,
+                metadataTestCase.fee
+            );
+            assertEq(FullRangePair(pair).symbol(), metadataTestCase.symbol);
+            assertEq(FullRangePair(pair).name(), metadataTestCase.name);
+        }
     }
 
     function testMint(address from, uint256 amount) public {

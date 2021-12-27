@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 pragma solidity >=0.8.0;
 
-import {FullRangePair} from "../../../FullRangePair.sol";
+import {FullRangePair} from "../../FullRangePair.sol";
 
 contract FullRangePairUser {
     FullRangePair public fullRangePair;
