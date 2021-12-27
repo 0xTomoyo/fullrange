@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0
-pragma solidity ^0.8.10;
+pragma solidity >=0.8.0;
 
 import {DSTest} from "ds-test/test.sol";
 import {FullRange} from "../FullRange.sol";

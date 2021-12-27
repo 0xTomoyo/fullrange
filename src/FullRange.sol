@@ -180,10 +180,11 @@ contract FullRange {
         address tokenB,
         uint24 fee
     ) public returns (address pair, address pool) {
-        if (tokenA > tokenB) (tokenA, tokenB) = (tokenB, tokenA);
-        pool = PoolAddress.computeAddress(factory, tokenA, tokenB, fee);
+        pool = IUniswapV3Factory(factory).getPool(tokenA, tokenB, fee);
         pair = getPair[pool];
         if (pair == address(0)) {
+            require(pool != address(0), "Pool not deployed");
+            if (tokenA > tokenB) (tokenA, tokenB) = (tokenB, tokenA);
             pair = address(new FullRangePair{salt: keccak256(abi.encode(tokenA, tokenB, fee))}());
             getPool[pair] = pool;
             getPair[pool] = pair;
