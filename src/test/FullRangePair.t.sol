@@ -4,8 +4,51 @@ pragma solidity >=0.8.0;
 import {DSTest} from "ds-test/test.sol";
 import {FullRange} from "../FullRange.sol";
 import {FullRangePair} from "../FullRangePair.sol";
-import {FullRangePairUser} from "./utils/FullRangePairUser.sol";
 import {FACTORY, WETH, USDC, WBTC, DAI, FeeAmount} from "./utils/Constants.sol";
+
+contract MockFullRangePair {
+    FullRangePair public fullRangePair;
+
+    constructor(FullRangePair _fullRangePair) {
+        fullRangePair = _fullRangePair;
+    }
+
+    function mint(address to, uint256 amount) public virtual {
+        fullRangePair.mint(to, amount);
+    }
+
+    function burn(address from, uint256 amount) public virtual {
+        fullRangePair.burn(from, amount);
+    }
+
+    function approve(address spender, uint256 amount) public virtual returns (bool) {
+        return fullRangePair.approve(spender, amount);
+    }
+
+    function transfer(address to, uint256 amount) public virtual returns (bool) {
+        return fullRangePair.transfer(to, amount);
+    }
+
+    function transferFrom(
+        address from,
+        address to,
+        uint256 amount
+    ) public virtual returns (bool) {
+        return fullRangePair.transferFrom(from, to, amount);
+    }
+
+    function permit(
+        address owner,
+        address spender,
+        uint256 value,
+        uint256 deadline,
+        uint8 v,
+        bytes32 r,
+        bytes32 s
+    ) public virtual {
+        return fullRangePair.permit(owner, spender, value, deadline, v, r, s);
+    }
+}
 
 contract FullRangePairTest is DSTest {
     struct MetadataTestCase {
@@ -58,7 +101,7 @@ contract FullRangePairTest is DSTest {
     }
 
     function testMint(address from, uint256 amount) public {
-        FullRangePairUser user = new FullRangePairUser(fullRangePair);
+        MockFullRangePair user = new MockFullRangePair(fullRangePair);
 
         try user.mint(from, amount) {
             fail();
@@ -75,7 +118,7 @@ contract FullRangePairTest is DSTest {
         uint256 burnAmount
     ) public {
         if (burnAmount > mintAmount) return;
-        FullRangePairUser user = new FullRangePairUser(fullRangePair);
+        MockFullRangePair user = new MockFullRangePair(fullRangePair);
 
         fullRangePair.mint(from, mintAmount);
         try user.burn(from, burnAmount) {
@@ -114,7 +157,7 @@ contract FullRangePairTest is DSTest {
     ) public {
         if (amount > approval) return;
 
-        FullRangePairUser user = new FullRangePairUser(fullRangePair);
+        MockFullRangePair user = new MockFullRangePair(fullRangePair);
 
         fullRangePair.mint(address(user), amount);
 
@@ -141,7 +184,7 @@ contract FullRangePairTest is DSTest {
     ) public {
         require(approval < amount);
 
-        FullRangePairUser user = new FullRangePairUser(fullRangePair);
+        MockFullRangePair user = new MockFullRangePair(fullRangePair);
 
         fullRangePair.mint(address(user), amount);
         user.approve(address(this), approval);
@@ -155,7 +198,7 @@ contract FullRangePairTest is DSTest {
     ) public {
         require(mintAmount < sendAmount);
 
-        FullRangePairUser user = new FullRangePairUser(fullRangePair);
+        MockFullRangePair user = new MockFullRangePair(fullRangePair);
 
         fullRangePair.mint(address(user), mintAmount);
         user.approve(address(this), sendAmount);
