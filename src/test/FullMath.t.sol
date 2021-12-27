@@ -154,6 +154,8 @@ contract FullMathTest is DSTest {
                 result++;
             }
         }
-        assertEq(FullMath.mulDivRoundingUp(a, b, denominator), result);
+        uint256 mulDivRoundingUp = FullMath.mulDivRoundingUp(a, b, denominator);
+        assertEq(mulDivRoundingUp, result);
+        assertGe(mulDivRoundingUp, FullMath.mulDiv(a, b, denominator));
     }
 }
