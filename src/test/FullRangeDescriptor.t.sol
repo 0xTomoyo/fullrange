@@ -46,7 +46,7 @@ contract FullRangeDescriptorTest is DSTest {
     }
 
     function testMetaData() public {
-        MetadataTestCase[5] memory metadataTestCases = [
+        MetadataTestCase[3] memory metadataTestCases = [
             MetadataTestCase(
                 0x8ad599c3A0ff1De082011EFDDc58f1908eb6e6D8,
                 "UNI-V3-USDC/WETH-0.3%",
@@ -61,16 +61,6 @@ contract FullRangeDescriptorTest is DSTest {
                 0x6c6Bc977E13Df9b0de53b251522280BB72383700,
                 "UNI-V3-DAI/USDC-0.05%",
                 "Uniswap V3 DAI/USDC 0.05% LP"
-            ),
-            MetadataTestCase(
-                0x99ac8cA7087fA4A2A1FB6357269965A2014ABc35,
-                "UNI-V3-WBTC/USDC-0.3%",
-                "Uniswap V3 WBTC/USDC 0.3% LP"
-            ),
-            MetadataTestCase(
-                0x5777d92f208679DB4b9778590Fa3CAB3aC9e2168,
-                "UNI-V3-DAI/USDC-0.01%",
-                "Uniswap V3 DAI/USDC 0.01% LP"
             )
         ];
         for (uint256 i = 0; i < metadataTestCases.length; i++) {
