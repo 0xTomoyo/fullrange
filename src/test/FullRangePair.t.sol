@@ -82,12 +82,12 @@ contract FullRangePairTest is DSTest {
         } catch {}
 
         FullRange fullRange = new FullRange(FACTORY, WETH);
-        MetadataTestCase[5] memory metadataTestCases = [
+        MetadataTestCase[3] memory metadataTestCases = [
             MetadataTestCase(USDC, WETH, FeeAmount.MEDIUM, "UNI-V3-USDC/WETH-0.3%", "Uniswap V3 USDC/WETH 0.3% LP"),
             MetadataTestCase(USDC, WETH, FeeAmount.HIGH, "UNI-V3-USDC/WETH-1%", "Uniswap V3 USDC/WETH 1% LP"),
-            MetadataTestCase(DAI, USDC, FeeAmount.LOW, "UNI-V3-DAI/USDC-0.05%", "Uniswap V3 DAI/USDC 0.05% LP"),
-            MetadataTestCase(WBTC, USDC, FeeAmount.MEDIUM, "UNI-V3-WBTC/USDC-0.3%", "Uniswap V3 WBTC/USDC 0.3% LP"),
-            MetadataTestCase(DAI, USDC, FeeAmount.LOWEST, "UNI-V3-DAI/USDC-0.01%", "Uniswap V3 DAI/USDC 0.01% LP")
+            MetadataTestCase(DAI, USDC, FeeAmount.LOW, "UNI-V3-DAI/USDC-0.05%", "Uniswap V3 DAI/USDC 0.05% LP")
+            // MetadataTestCase(WBTC, USDC, FeeAmount.MEDIUM, "UNI-V3-WBTC/USDC-0.3%", "Uniswap V3 WBTC/USDC 0.3% LP"),
+            // MetadataTestCase(DAI, USDC, FeeAmount.LOWEST, "UNI-V3-DAI/USDC-0.01%", "Uniswap V3 DAI/USDC 0.01% LP")
         ];
         for (uint256 i = 0; i < metadataTestCases.length; i++) {
             MetadataTestCase memory metadataTestCase = metadataTestCases[i];

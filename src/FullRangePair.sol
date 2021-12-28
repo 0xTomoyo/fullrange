@@ -119,11 +119,11 @@ contract FullRangePair {
     }
 
     function symbol() external view returns (string memory) {
-        return IFullRange(fullRange).constructPairSymbol(fullRange);
+        return IFullRange(fullRange).constructPairSymbol(address(this));
     }
 
     function name() external view returns (string memory) {
-        return IFullRange(fullRange).constructPairName(fullRange);
+        return IFullRange(fullRange).constructPairName(address(this));
     }
 
     function DOMAIN_SEPARATOR() public view returns (bytes32) {
