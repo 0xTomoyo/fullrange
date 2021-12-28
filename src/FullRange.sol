@@ -6,7 +6,6 @@ import {IUniswapV3Pool} from "@uniswap/v3-core/contracts/interfaces/IUniswapV3Po
 import {TickMath} from "./libraries/TickMath.sol";
 import {PoolAddress} from "./libraries/PoolAddress.sol";
 import {LiquidityAmounts} from "./libraries/LiquidityAmounts.sol";
-import {FullRangeDescriptor} from "./libraries/FullRangeDescriptor.sol";
 import {FullRangePair} from "./FullRangePair.sol";
 
 contract FullRange {

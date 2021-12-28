@@ -4,7 +4,7 @@ pragma solidity >=0.8.0;
 import {IUniswapV3PoolImmutables} from "@uniswap/v3-core/contracts/interfaces/pool/IUniswapV3PoolImmutables.sol";
 import {IFullRange} from "../interfaces/IFullRange.sol";
 
-library FullRangeDescriptor {
+library PairDescriptor {
     struct DecimalStringParams {
         // significant figures of decimal
         uint256 sigfigs;
