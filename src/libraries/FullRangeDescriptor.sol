@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity >=0.8.0;
 
-import {IUniswapV3Pool} from "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
+import {IUniswapV3PoolImmutables} from "@uniswap/v3-core/contracts/interfaces/pool/IUniswapV3PoolImmutables.sol";
+import {IFullRange} from "../interfaces/IFullRange.sol";
 
 library FullRangeDescriptor {
     struct DecimalStringParams {
@@ -23,30 +24,32 @@ library FullRangeDescriptor {
         bool isPercent;
     }
 
-    function constructSymbol(address pool) internal view returns (string memory) {
+    function constructSymbol(address fullRange) internal view returns (string memory) {
+        IUniswapV3PoolImmutables pool = IUniswapV3PoolImmutables(IFullRange(fullRange).getPool(address(this)));
         return
             string(
                 abi.encodePacked(
                     "UNI-V3-",
-                    tokenSymbol(IUniswapV3Pool(pool).token0()),
+                    tokenSymbol(pool.token0()),
                     "/",
-                    tokenSymbol(IUniswapV3Pool(pool).token1()),
+                    tokenSymbol(pool.token1()),
                     "-",
-                    feeToPercentString(IUniswapV3Pool(pool).fee())
+                    feeToPercentString(pool.fee())
                 )
             );
     }
 
-    function constructName(address pool) internal view returns (string memory) {
+    function constructName(address fullRange) internal view returns (string memory) {
+        IUniswapV3PoolImmutables pool = IUniswapV3PoolImmutables(IFullRange(fullRange).getPool(address(this)));
         return
             string(
                 abi.encodePacked(
                     "Uniswap V3 ",
-                    tokenSymbol(IUniswapV3Pool(pool).token0()),
+                    tokenSymbol(pool.token0()),
                     "/",
-                    tokenSymbol(IUniswapV3Pool(pool).token1()),
+                    tokenSymbol(pool.token1()),
                     " ",
-                    feeToPercentString(IUniswapV3Pool(pool).fee()),
+                    feeToPercentString(pool.fee()),
                     " LP"
                 )
             );
@@ -112,7 +115,7 @@ library FullRangeDescriptor {
     // converts an address to the uppercase hex string, extracting only len bytes (up to 20, multiple of 2)
     function toAsciiString(address addr, uint256 len) internal pure returns (string memory) {
         unchecked {
-            require(len % 2 == 0 && len > 0 && len <= 40, "INVALID_LEN");
+            require(len % 2 == 0 && len > 0 && len <= 40);
 
             bytes memory s = new bytes(len);
             uint256 addrNum = uint256(uint160(addr));

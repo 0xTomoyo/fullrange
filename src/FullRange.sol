@@ -188,12 +188,4 @@ contract FullRange {
             getPair[pool] = pair;
         }
     }
-
-    function constructPairSymbol(address pair) external view returns (string memory) {
-        return FullRangeDescriptor.constructSymbol(getPool[pair]);
-    }
-
-    function constructPairName(address pair) external view returns (string memory) {
-        return FullRangeDescriptor.constructName(getPool[pair]);
-    }
 }

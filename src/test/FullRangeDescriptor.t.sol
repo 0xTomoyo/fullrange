@@ -5,6 +5,20 @@ import {DSTest} from "ds-test/test.sol";
 import {FullRangeDescriptor} from "../libraries/FullRangeDescriptor.sol";
 
 contract MockFullRangeDescriptor {
+    mapping(address => address) public getPool;
+
+    function constructName(address pool) external returns (string memory name) {
+        getPool[address(this)] = pool;
+        name = FullRangeDescriptor.constructName(address(this));
+        getPool[address(this)] = address(0);
+    }
+
+    function constructSymbol(address pool) external returns (string memory symbol) {
+        getPool[address(this)] = pool;
+        symbol = FullRangeDescriptor.constructSymbol(address(this));
+        getPool[address(this)] = address(0);
+    }
+
     function toAsciiString(address addr, uint256 len) external pure returns (string memory) {
         return FullRangeDescriptor.toAsciiString(addr, len);
     }
@@ -65,8 +79,8 @@ contract FullRangeDescriptorTest is DSTest {
         ];
         for (uint256 i = 0; i < metadataTestCases.length; i++) {
             MetadataTestCase memory metadataTestCase = metadataTestCases[i];
-            assertEq(FullRangeDescriptor.constructSymbol(metadataTestCase.pool), metadataTestCase.symbol);
-            assertEq(FullRangeDescriptor.constructName(metadataTestCase.pool), metadataTestCase.name);
+            assertEq(fullRangeDescriptor.constructSymbol(metadataTestCase.pool), metadataTestCase.symbol);
+            assertEq(fullRangeDescriptor.constructName(metadataTestCase.pool), metadataTestCase.name);
         }
     }
 
@@ -135,21 +149,15 @@ contract FullRangeDescriptorTest is DSTest {
 
         try fullRangeDescriptor.toAsciiString(example, 39) {
             fail();
-        } catch Error(string memory error) {
-            assertEq(error, "INVALID_LEN");
-        }
+        } catch {}
 
         try fullRangeDescriptor.toAsciiString(example, 42) {
             fail();
-        } catch Error(string memory error) {
-            assertEq(error, "INVALID_LEN");
-        }
+        } catch {}
 
         try fullRangeDescriptor.toAsciiString(example, 0) {
             fail();
-        } catch Error(string memory error) {
-            assertEq(error, "INVALID_LEN");
-        }
+        } catch {}
 
         assertEq(FullRangeDescriptor.toAsciiString(example, 4), "C257");
 
