@@ -189,11 +189,11 @@ contract FullRange {
         }
     }
 
-    function constructPairName(address pair) external view returns (string memory) {
-        return FullRangeDescriptor.constructName(getPool[pair]);
-    }
-
     function constructPairSymbol(address pair) external view returns (string memory) {
         return FullRangeDescriptor.constructSymbol(getPool[pair]);
+    }
+
+    function constructPairName(address pair) external view returns (string memory) {
+        return FullRangeDescriptor.constructName(getPool[pair]);
     }
 }

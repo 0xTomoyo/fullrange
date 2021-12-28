@@ -23,6 +23,20 @@ library FullRangeDescriptor {
         bool isPercent;
     }
 
+    function constructSymbol(address pool) internal view returns (string memory) {
+        return
+            string(
+                abi.encodePacked(
+                    "UNI-V3-",
+                    tokenSymbol(IUniswapV3Pool(pool).token0()),
+                    "/",
+                    tokenSymbol(IUniswapV3Pool(pool).token1()),
+                    "-",
+                    feeToPercentString(IUniswapV3Pool(pool).fee())
+                )
+            );
+    }
+
     function constructName(address pool) internal view returns (string memory) {
         return
             string(
@@ -34,20 +48,6 @@ library FullRangeDescriptor {
                     " ",
                     feeToPercentString(IUniswapV3Pool(pool).fee()),
                     " LP"
-                )
-            );
-    }
-
-    function constructSymbol(address pool) internal view returns (string memory) {
-        return
-            string(
-                abi.encodePacked(
-                    "UNI-V3-",
-                    tokenSymbol(IUniswapV3Pool(pool).token0()),
-                    "/",
-                    tokenSymbol(IUniswapV3Pool(pool).token1()),
-                    "-",
-                    feeToPercentString(IUniswapV3Pool(pool).fee())
                 )
             );
     }

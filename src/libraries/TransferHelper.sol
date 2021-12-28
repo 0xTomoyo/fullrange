@@ -2,21 +2,19 @@
 pragma solidity >=0.6.0;
 
 library TransferHelper {
-    /// @notice Transfers tokens from the targeted address to the given destination
-    /// @notice Errors with 'STF' if transfer fails
-    /// @param token The contract address of the token to be transferred
-    /// @param from The originating address from which the tokens will be transferred
-    /// @param to The destination address of the transfer
-    /// @param value The amount to be transferred
-    function safeTransferFrom(
+    /// @notice Approves the stipulated contract to spend the given allowance in the given token
+    /// @dev Errors with 'SA' if transfer fails
+    /// @param token The contract address of the token to be approved
+    /// @param to The target of the approval
+    /// @param value The amount of the given token the target will be allowed to spend
+    function safeApprove(
         address token,
-        address from,
         address to,
         uint256 value
     ) internal {
-        // bytes4(keccak256(bytes('transferFrom(address,address,uint256)')));
-        (bool success, bytes memory data) = token.call(abi.encodeWithSelector(0x23b872dd, from, to, value));
-        require(success && (data.length == 0 || abi.decode(data, (bool))), "STF");
+        // bytes4(keccak256(bytes('approve(address,uint256)')));
+        (bool success, bytes memory data) = token.call(abi.encodeWithSelector(0x095ea7b3, to, value));
+        require(success && (data.length == 0 || abi.decode(data, (bool))), "SA");
     }
 
     /// @notice Transfers tokens from msg.sender to a recipient
@@ -34,19 +32,21 @@ library TransferHelper {
         require(success && (data.length == 0 || abi.decode(data, (bool))), "ST");
     }
 
-    /// @notice Approves the stipulated contract to spend the given allowance in the given token
-    /// @dev Errors with 'SA' if transfer fails
-    /// @param token The contract address of the token to be approved
-    /// @param to The target of the approval
-    /// @param value The amount of the given token the target will be allowed to spend
-    function safeApprove(
+    /// @notice Transfers tokens from the targeted address to the given destination
+    /// @notice Errors with 'STF' if transfer fails
+    /// @param token The contract address of the token to be transferred
+    /// @param from The originating address from which the tokens will be transferred
+    /// @param to The destination address of the transfer
+    /// @param value The amount to be transferred
+    function safeTransferFrom(
         address token,
+        address from,
         address to,
         uint256 value
     ) internal {
-        // bytes4(keccak256(bytes('approve(address,uint256)')));
-        (bool success, bytes memory data) = token.call(abi.encodeWithSelector(0x095ea7b3, to, value));
-        require(success && (data.length == 0 || abi.decode(data, (bool))), "SA");
+        // bytes4(keccak256(bytes('transferFrom(address,address,uint256)')));
+        (bool success, bytes memory data) = token.call(abi.encodeWithSelector(0x23b872dd, from, to, value));
+        require(success && (data.length == 0 || abi.decode(data, (bool))), "STF");
     }
 
     /// @notice Transfers ETH to the recipient address
