@@ -24,8 +24,11 @@
     "solhint-plugin-prettier": "^0.0.5"
   },
   "scripts": {
-    "lint": "yarn prettier && yarn solhint",
-    "prettier": "prettier --config ./.prettierrc.json --ignore-path ./.gitignore --check \"src/**/*.sol\" --write",
-    "solhint": "solhint --config ./.solhint.json --ignore-path ./.gitignore \"src/**/*.sol\" --fix"
+    "lint": "yarn run prettier && yarn run solhint",
+    "lint:check": "yarn run prettier:check && yarn run solhint:check",
+    "prettier": "yarn run prettier:check --write",
+    "prettier:check": "prettier --config ./.prettierrc.json --ignore-path ./.gitignore --check \"src/**/*.sol\"",
+    "solhint": "yarn run solhint:check --fix",
+    "solhint:check": "solhint --config ./.solhint.json --ignore-path ./.gitignore \"src/**/*.sol\""
   }
 }
