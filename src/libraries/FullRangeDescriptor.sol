@@ -2,7 +2,6 @@
 pragma solidity >=0.8.0;
 
 import {IUniswapV3Pool} from "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
-import {IFullRange} from "../interfaces/IFullRange.sol";
 
 library FullRangeDescriptor {
     struct DecimalStringParams {
@@ -24,33 +23,31 @@ library FullRangeDescriptor {
         bool isPercent;
     }
 
-    function constructName(address fullRange) internal view returns (string memory) {
-        IUniswapV3Pool pool = IUniswapV3Pool(IFullRange(fullRange).getPool(address(this)));
+    function constructName(address pool) internal view returns (string memory) {
         return
             string(
                 abi.encodePacked(
                     "Uniswap V3 ",
-                    tokenSymbol(pool.token0()),
+                    tokenSymbol(IUniswapV3Pool(pool).token0()),
                     "/",
-                    tokenSymbol(pool.token1()),
+                    tokenSymbol(IUniswapV3Pool(pool).token1()),
                     " ",
-                    feeToPercentString(pool.fee()),
+                    feeToPercentString(IUniswapV3Pool(pool).fee()),
                     " LP"
                 )
             );
     }
 
-    function constructSymbol(address fullRange) internal view returns (string memory) {
-        IUniswapV3Pool pool = IUniswapV3Pool(IFullRange(fullRange).getPool(address(this)));
+    function constructSymbol(address pool) internal view returns (string memory) {
         return
             string(
                 abi.encodePacked(
                     "UNI-V3-",
-                    tokenSymbol(pool.token0()),
+                    tokenSymbol(IUniswapV3Pool(pool).token0()),
                     "/",
-                    tokenSymbol(pool.token1()),
+                    tokenSymbol(IUniswapV3Pool(pool).token1()),
                     "-",
-                    feeToPercentString(pool.fee())
+                    feeToPercentString(IUniswapV3Pool(pool).fee())
                 )
             );
     }
