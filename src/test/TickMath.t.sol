@@ -91,4 +91,21 @@ contract TickMathTest is DSTest {
         assertTrue(tick >= TickMath.MIN_TICK);
         assertTrue(tick < TickMath.MAX_TICK);
     }
+
+    function testGetTicks() public {
+        int24 minTick;
+        int24 maxTick;
+
+        (minTick, maxTick) = TickMath.getTicks(10);
+        assertEq(minTick, -887270);
+        assertEq(maxTick, 887270);
+
+        (minTick, maxTick) = TickMath.getTicks(60);
+        assertEq(minTick, -887220);
+        assertEq(maxTick, 887220);
+
+        (minTick, maxTick) = TickMath.getTicks(200);
+        assertEq(minTick, -887200);
+        assertEq(maxTick, 887200);
+    }
 }

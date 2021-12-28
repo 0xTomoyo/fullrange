@@ -6,7 +6,6 @@ import {IUniswapV3Pool} from "@uniswap/v3-core/contracts/interfaces/IUniswapV3Po
 import {TickMath} from "./libraries/TickMath.sol";
 import {PoolAddress} from "./libraries/PoolAddress.sol";
 import {LiquidityAmounts} from "./libraries/LiquidityAmounts.sol";
-import {FullRangeMath} from "./libraries/FullRangeMath.sol";
 import {FullRangePair} from "./FullRangePair.sol";
 
 contract FullRange {
@@ -153,9 +152,7 @@ contract FullRange {
     {
         {
             (uint160 sqrtPriceX96, , , , , , ) = IUniswapV3Pool(pool).slot0();
-            (tickLower, tickUpper) = FullRangeMath.getTicks(
-                IUniswapV3Factory(factory).feeAmountTickSpacing(params.fee)
-            );
+            (tickLower, tickUpper) = TickMath.getTicks(IUniswapV3Factory(factory).feeAmountTickSpacing(params.fee));
             liquidity = LiquidityAmounts.getLiquidityForAmounts(
                 sqrtPriceX96,
                 TickMath.getSqrtRatioAtTick(tickLower),
