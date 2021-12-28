@@ -1,10 +1,6 @@
-on:
-  push:
-    branches:
-      - master
-  pull_request:
+name: Tests
 
-name: unit tests
+on: [push, pull_request]
 
 jobs:
   tests:
@@ -12,8 +8,6 @@ jobs:
 
     steps:
       - uses: actions/checkout@v2
-        with:
-          submodules: recursive
 
       - name: Install libusb (needed to hw wallet support on Forge/Cast)
         run: sudo apt update && sudo apt install pkg-config libudev-dev
@@ -41,5 +35,43 @@ jobs:
         if: steps.cache-forge.outputs.cache-hit != 'true'
         run: |
           cargo install --git https://github.com/gakonst/foundry --bin forge --locked
+      - name: Install dependencies
+        run: forge update
       - name: Run tests
         run: forge test --fork-url ${{ secrets.ETH_RPC_URL }} --fork-block-number 13884082
+  lint:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-node@v2
+
+      - name: Install libusb (needed to hw wallet support on Forge/Cast)
+        run: sudo apt update && sudo apt install pkg-config libudev-dev
+
+      - name: Install stable toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+
+      - uses: Swatinem/rust-cache@v1
+        with:
+          cache-on-failure: true
+
+      - name: Cache Forge
+        id: cache-forge
+        uses: actions/cache@v2
+        with:
+          path: ~/.cargo/bin/forge
+          key: cache-forge
+
+      - name: Install Forge
+        if: steps.cache-forge.outputs.cache-hit != 'true'
+        run: |
+          cargo install --git https://github.com/gakonst/foundry --bin forge --locked
+      - name: Install dependencies
+        run: forge update
+      - name: Run tests
+        run: yarn lint:check
