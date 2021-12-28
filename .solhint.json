@@ -9,7 +9,7 @@
     "func-name-mixedcase": "off",
     "constructor-syntax": "error",
     "func-visibility": ["error", { "ignoreConstructors": true }],
-    "max-line-length": ["error", 140],
+    "max-line-length": ["warn", 120],
     "not-rely-on-time": "off",
     "prettier/prettier": [
       "error",
