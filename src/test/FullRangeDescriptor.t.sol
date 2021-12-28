@@ -46,7 +46,7 @@ contract MockNonCompliantERC20 {
 
 contract MockOptionalERC20 {}
 
-contract FullMathTest is DSTest {
+contract FullRangeDescriptorTest is DSTest {
     struct MetadataTestCase {
         address pool;
         string symbol;
