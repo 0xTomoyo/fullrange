@@ -6,12 +6,20 @@ import {IUniswapV3Pool} from "@uniswap/v3-core/contracts/interfaces/IUniswapV3Po
 import {TickMath} from "./libraries/TickMath.sol";
 import {PoolAddress} from "./libraries/PoolAddress.sol";
 import {LiquidityAmounts} from "./libraries/LiquidityAmounts.sol";
+import {OracleLibrary} from "./libraries/OracleLibrary.sol";
 import {FullRangePair} from "./FullRangePair.sol";
 
 contract FullRange {
     address public immutable factory;
 
     address public immutable weth;
+
+    struct Oracle {
+        uint32 secondsAgo;
+        int24 maxTickDeviation;
+    }
+
+    Oracle public oracle;
 
     mapping(address => address) public getPool;
 
@@ -131,22 +139,54 @@ contract FullRange {
         require(amount0 >= params.amountAMin && amount1 >= params.amountBMin, "Price slippage check");
     }
 
-    struct CollectParams {
-        address tokenA;
-        address tokenB;
-        uint24 fee;
+    function collect(
+        address tokenA,
+        address tokenB,
+        uint24 fee
+    ) external {
+        if (tokenA > tokenB) (tokenA, tokenB) = (tokenB, tokenA);
+        address pool = PoolAddress.computeAddress(factory, tokenA, tokenB, fee);
+        require(canCollect(pool), "Cannot collect");
+        (int24 tickLower, int24 tickUpper) = TickMath.getTicks(IUniswapV3Factory(factory).feeAmountTickSpacing(fee));
+        IUniswapV3Pool(pool).burn(tickLower, tickUpper, 0);
+        uint128 liquidity;
+        {
+            (uint160 sqrtPriceX96, , , , , , ) = IUniswapV3Pool(pool).slot0();
+            (, , , uint256 tokensOwed0, uint256 tokensOwed1) = IUniswapV3Pool(pool).positions(
+                keccak256(abi.encodePacked(address(this), tickLower, tickUpper))
+            );
+            (liquidity, tokensOwed0, tokensOwed1) = LiquidityAmounts.getLiquidityAmountsForAmounts(
+                sqrtPriceX96,
+                TickMath.getSqrtRatioAtTick(tickLower),
+                TickMath.getSqrtRatioAtTick(tickUpper),
+                tokensOwed0,
+                tokensOwed1
+            );
+            (tokensOwed0, tokensOwed1) = IUniswapV3Pool(pool).collect(
+                address(this),
+                tickLower,
+                tickUpper,
+                uint128(tokensOwed0),
+                uint128(tokensOwed0)
+            );
+        }
+        IUniswapV3Pool(pool).mint(
+            address(this),
+            tickLower,
+            tickUpper,
+            liquidity,
+            abi.encode(MintCallbackData(address(this), tokenA, tokenB, fee))
+        );
     }
 
-    function collect(CollectParams memory params) external {
-        if (params.tokenA > params.tokenB) (params.tokenA, params.tokenB) = (params.tokenB, params.tokenA);
-        address pool = PoolAddress.computeAddress(factory, params.tokenA, params.tokenB, params.fee);
-        (int24 tickLower, int24 tickUpper) = TickMath.getTicks(
-            IUniswapV3Factory(factory).feeAmountTickSpacing(params.fee)
-        );
-        IUniswapV3Pool(pool).burn(tickLower, tickUpper, 0);
-        (, , , uint128 tokensOwed0, uint128 tokensOwed1) = IUniswapV3Pool(pool).positions(
-            keccak256(abi.encodePacked(address(this), tickLower, tickUpper))
-        );
+    function canCollect(address pool) public view returns (bool) {
+        Oracle memory _oracle = oracle;
+        int24 twap = OracleLibrary.consult(pool, _oracle.secondsAgo);
+        (, int24 tick, , , , , ) = IUniswapV3Pool(pool).slot0();
+        if ((tick > twap ? tick - twap : twap - tick) > _oracle.maxTickDeviation) {
+            return false;
+        }
+        return true;
     }
 
     function _mint(

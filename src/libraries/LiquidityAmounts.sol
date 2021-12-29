@@ -140,4 +140,43 @@ library LiquidityAmounts {
             amount1 = getAmount1ForLiquidity(sqrtRatioAX96, sqrtRatioBX96, liquidity);
         }
     }
+
+    function getLiquidityAmountsForAmounts(
+        uint160 sqrtRatioX96,
+        uint160 sqrtRatioAX96,
+        uint160 sqrtRatioBX96,
+        uint256 amount0,
+        uint256 amount1
+    )
+        internal
+        pure
+        returns (
+            uint128,
+            uint256,
+            uint256
+        )
+    {
+        if (sqrtRatioAX96 > sqrtRatioBX96) (sqrtRatioAX96, sqrtRatioBX96) = (sqrtRatioBX96, sqrtRatioAX96);
+
+        uint128 liquidity;
+        if (sqrtRatioX96 <= sqrtRatioAX96) {
+            liquidity = getLiquidityForAmount0(sqrtRatioAX96, sqrtRatioBX96, amount0);
+            amount1 = 0;
+        } else if (sqrtRatioX96 < sqrtRatioBX96) {
+            uint128 liquidity0 = getLiquidityForAmount0(sqrtRatioX96, sqrtRatioBX96, amount0);
+            uint128 liquidity1 = getLiquidityForAmount1(sqrtRatioAX96, sqrtRatioX96, amount1);
+
+            if (liquidity0 < liquidity1) {
+                liquidity = liquidity0;
+                amount1 = getAmount1ForLiquidity(sqrtRatioAX96, sqrtRatioBX96, liquidity0);
+            } else {
+                liquidity = liquidity1;
+                amount0 = getAmount0ForLiquidity(sqrtRatioAX96, sqrtRatioBX96, liquidity1);
+            }
+        } else {
+            liquidity = getLiquidityForAmount1(sqrtRatioAX96, sqrtRatioBX96, amount1);
+            amount0 = 0;
+        }
+        return (liquidity, amount0, amount1);
+    }
 }
