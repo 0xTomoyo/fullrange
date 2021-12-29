@@ -139,50 +139,73 @@ contract FullRange {
         require(amount0 >= params.amountAMin && amount1 >= params.amountBMin, "Price slippage check");
     }
 
-    function collect(
-        address tokenA,
-        address tokenB,
-        uint24 fee
-    ) external {
-        if (tokenA > tokenB) (tokenA, tokenB) = (tokenB, tokenA);
-        address pool = PoolAddress.computeAddress(factory, tokenA, tokenB, fee);
-        require(canCollect(pool), "Cannot collect");
-        (int24 tickLower, int24 tickUpper) = TickMath.getTicks(IUniswapV3Factory(factory).feeAmountTickSpacing(fee));
+    struct CompoundParams {
+        address tokenA;
+        address tokenB;
+        uint24 fee;
+    }
+
+    function collect(CompoundParams memory params)
+        external
+        returns (
+            uint128 liquidity,
+            uint256 amount0,
+            uint256 amount1
+        )
+    {
+        if (params.tokenA > params.tokenB) (params.tokenA, params.tokenB) = (params.tokenB, params.tokenA);
+        address pool = PoolAddress.computeAddress(factory, params.tokenA, params.tokenB, params.fee);
+        (uint160 sqrtPriceX96, int24 tick, , , , , ) = IUniswapV3Pool(pool).slot0();
+        require(_canCollect(pool, tick), "Cannot collect");
+        (int24 tickLower, int24 tickUpper) = TickMath.getTicks(
+            IUniswapV3Factory(factory).feeAmountTickSpacing(params.fee)
+        );
+        (liquidity, amount0, amount1) = _collect(params, pool, sqrtPriceX96, tickLower, tickUpper);
+    }
+
+    function _collect(
+        CompoundParams memory params,
+        address pool,
+        uint160 sqrtPriceX96,
+        int24 tickLower,
+        int24 tickUpper
+    )
+        internal
+        returns (
+            uint128 liquidity,
+            uint256 amount0,
+            uint256 amount1
+        )
+    {
         IUniswapV3Pool(pool).burn(tickLower, tickUpper, 0);
-        uint128 liquidity;
-        {
-            (uint160 sqrtPriceX96, , , , , , ) = IUniswapV3Pool(pool).slot0();
-            (, , , uint256 tokensOwed0, uint256 tokensOwed1) = IUniswapV3Pool(pool).positions(
-                keccak256(abi.encodePacked(address(this), tickLower, tickUpper))
-            );
-            (liquidity, tokensOwed0, tokensOwed1) = LiquidityAmounts.getLiquidityAmountsForAmounts(
-                sqrtPriceX96,
-                TickMath.getSqrtRatioAtTick(tickLower),
-                TickMath.getSqrtRatioAtTick(tickUpper),
-                tokensOwed0,
-                tokensOwed1
-            );
-            (tokensOwed0, tokensOwed1) = IUniswapV3Pool(pool).collect(
-                address(this),
-                tickLower,
-                tickUpper,
-                uint128(tokensOwed0),
-                uint128(tokensOwed0)
-            );
-        }
-        IUniswapV3Pool(pool).mint(
+        (amount0, amount1) = IUniswapV3Pool(pool).collect(
             address(this),
             tickLower,
             tickUpper,
-            liquidity,
-            abi.encode(MintCallbackData(address(this), tokenA, tokenB, fee))
+            type(uint128).max,
+            type(uint128).max
         );
+        (liquidity, amount0, amount1) = LiquidityAmounts.getLiquidityAmountsForAmounts(
+            sqrtPriceX96,
+            TickMath.getSqrtRatioAtTick(tickLower),
+            TickMath.getSqrtRatioAtTick(tickUpper),
+            amount0,
+            amount1
+        );
+        if (liquidity != 0) {
+            IUniswapV3Pool(pool).mint(
+                address(this),
+                tickLower,
+                tickUpper,
+                liquidity,
+                abi.encode(MintCallbackData(address(this), params.tokenA, params.tokenB, params.fee))
+            );
+        }
     }
 
-    function canCollect(address pool) public view returns (bool) {
+    function _canCollect(address pool, int24 tick) internal view returns (bool) {
         Oracle memory _oracle = oracle;
         int24 twap = OracleLibrary.consult(pool, _oracle.secondsAgo);
-        (, int24 tick, , , , , ) = IUniswapV3Pool(pool).slot0();
         if ((tick > twap ? tick - twap : twap - tick) > _oracle.maxTickDeviation) {
             return false;
         }
