@@ -210,7 +210,7 @@ library TickMath {
     }
 
     function getTicks(int24 tickSpacing) internal pure returns (int24 minTick, int24 maxTick) {
-        minTick = (TickMath.MIN_TICK / tickSpacing) * tickSpacing;
-        maxTick = (TickMath.MAX_TICK / tickSpacing) * tickSpacing;
+        minTick = (MIN_TICK / tickSpacing) * tickSpacing;
+        maxTick = (MAX_TICK / tickSpacing) * tickSpacing;
     }
 }

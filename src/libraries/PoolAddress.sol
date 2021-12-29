@@ -33,4 +33,15 @@ library PoolAddress {
             )
         );
     }
+
+    function getPair(
+        mapping(address => address) storage self,
+        address factory,
+        address token0,
+        address token1,
+        uint24 fee
+    ) internal view returns (address pair, address pool) {
+        pool = computeAddress(factory, token0, token1, fee);
+        pair = self[pool];
+    }
 }

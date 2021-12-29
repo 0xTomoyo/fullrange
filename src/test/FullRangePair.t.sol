@@ -176,7 +176,7 @@ contract FullRangePairTest is DSTest {
         }
     }
 
-    function testFailTransferFromInsufficientAllowance(
+    function testFailTransferFromAllowance(
         address to,
         uint256 approval,
         uint256 amount
@@ -190,7 +190,7 @@ contract FullRangePairTest is DSTest {
         fullRangePair.transferFrom(address(user), to, amount);
     }
 
-    function testFailTransferFromInsufficientBalance(
+    function testFailTransferFromBalance(
         address to,
         uint256 mintAmount,
         uint256 sendAmount

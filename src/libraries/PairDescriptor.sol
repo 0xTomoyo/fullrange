@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity >=0.8.0;
 
-import {IUniswapV3PoolImmutables} from "@uniswap/v3-core/contracts/interfaces/pool/IUniswapV3PoolImmutables.sol";
+import {IUniswapV3Pool} from "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
 import {IFullRange} from "../interfaces/IFullRange.sol";
 
 library PairDescriptor {
@@ -25,7 +25,7 @@ library PairDescriptor {
     }
 
     function constructSymbol(address fullRange) internal view returns (string memory) {
-        IUniswapV3PoolImmutables pool = IUniswapV3PoolImmutables(IFullRange(fullRange).getPool(address(this)));
+        IUniswapV3Pool pool = IUniswapV3Pool(IFullRange(fullRange).getPool(address(this)));
         return
             string(
                 abi.encodePacked(
@@ -40,7 +40,7 @@ library PairDescriptor {
     }
 
     function constructName(address fullRange) internal view returns (string memory) {
-        IUniswapV3PoolImmutables pool = IUniswapV3PoolImmutables(IFullRange(fullRange).getPool(address(this)));
+        IUniswapV3Pool pool = IUniswapV3Pool(IFullRange(fullRange).getPool(address(this)));
         return
             string(
                 abi.encodePacked(
