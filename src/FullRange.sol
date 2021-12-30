@@ -15,8 +15,9 @@ contract FullRange {
     address public immutable weth;
 
     struct Oracle {
-        uint32 secondsAgo;
         int24 maxTickDeviation;
+        uint32 secondsAgo;
+        uint16 observationCardinality;
     }
 
     Oracle public oracle;
@@ -28,6 +29,8 @@ contract FullRange {
     constructor(address _factory, address _weth) {
         factory = _factory;
         weth = _weth;
+
+        oracle = Oracle({maxTickDeviation: 100, secondsAgo: 0, observationCardinality: 2});
     }
 
     struct MintCallbackData {
@@ -201,6 +204,24 @@ contract FullRange {
                 abi.encode(MintCallbackData(address(this), params.tokenA, params.tokenB, params.fee))
             );
         }
+    }
+
+    function _mintLiquidity(
+        address pool,
+        address token0,
+        address token1,
+        uint24 fee,
+        uint128 liquidity,
+        int24 tickLower,
+        int24 tickUpper
+    ) internal {
+        IUniswapV3Pool(pool).mint(
+            address(this),
+            tickLower,
+            tickUpper,
+            liquidity,
+            abi.encode(MintCallbackData(address(this), token0, token1, fee))
+        );
     }
 
     function _canCollect(address pool, int24 tick) internal view returns (bool) {
