@@ -98,21 +98,18 @@ contract FullRange {
             uint256 shares
         )
     {
-        {
-            (amountADesired, amountBDesired, amountAMin, amountBMin) = sortParams(
-                poolKey,
-                amountADesired,
-                amountBDesired,
-                amountAMin,
-                amountBMin
-            );
-        }
+        (amountADesired, amountBDesired, amountAMin, amountBMin) = sortParams(
+            poolKey,
+            amountADesired,
+            amountBDesired,
+            amountAMin,
+            amountBMin
+        );
         LocalVars memory vars;
         (vars.pair, vars.pool) = _createPair(poolKey);
         (vars.tickLower, vars.tickUpper) = TickMath.getTicks(
             IUniswapV3Factory(factory).feeAmountTickSpacing(poolKey.fee)
         );
-
         (uint160 sqrtPriceX96, , , , , , ) = IUniswapV3Pool(vars.pool).slot0();
         liquidity = LiquidityAmounts.getLiquidityForAmounts(
             sqrtPriceX96,
