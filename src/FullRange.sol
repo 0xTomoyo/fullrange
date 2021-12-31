@@ -13,15 +13,20 @@ import {FullRangeLibrary} from "./libraries/FullRangeLibrary.sol";
 import {TransferHelper} from "./libraries/TransferHelper.sol";
 
 contract FullRange is IFullRange {
-    address public immutable factory;
-
-    address public immutable weth;
-
     struct Oracle {
         int24 maxTickDeviation;
         uint32 secondsAgo;
         uint16 observationCardinality;
     }
+
+    struct MintCallbackData {
+        PoolKey poolKey;
+        address payer;
+    }
+
+    address public immutable factory;
+
+    address public immutable weth;
 
     Oracle public oracle;
 
@@ -36,47 +41,22 @@ contract FullRange is IFullRange {
         oracle = Oracle({maxTickDeviation: 100, secondsAgo: 0, observationCardinality: 2});
     }
 
-    struct MintCallbackData {
-        PoolKey poolKey;
-        address payer;
-    }
-
-    function uniswapV3MintCallback(
-        uint256 amount0Owed,
-        uint256 amount1Owed,
-        bytes calldata data
-    ) external {
-        MintCallbackData memory decoded = abi.decode(data, (MintCallbackData));
-        require(
-            msg.sender ==
-                PoolAddress.computeAddress(
-                    factory,
-                    decoded.poolKey.tokenA,
-                    decoded.poolKey.tokenB,
-                    decoded.poolKey.fee
-                ),
-            "Invalid sender"
-        );
-        if (amount0Owed > 0) _pay(decoded.poolKey.tokenA, decoded.payer, msg.sender, amount0Owed);
-        if (amount1Owed > 0) _pay(decoded.poolKey.tokenB, decoded.payer, msg.sender, amount1Owed);
-    }
-
-    function _pay(
-        address token,
-        address payer,
-        address recipient,
-        uint256 value
-    ) internal {
-        if (payer == address(this)) {
-            TransferHelper.safeTransfer(token, recipient, value);
-        } else {
-            TransferHelper.safeTransferFrom(token, payer, recipient, value);
-        }
-    }
-
     modifier checkDeadline(uint256 deadline) {
         require(block.timestamp <= deadline, "Transaction too old");
         _;
+    }
+
+    function createPair(
+        address tokenA,
+        address tokenB,
+        uint24 fee
+    ) external returns (address pair, address pool) {
+        if (tokenA > tokenB) (tokenA, tokenB) = (tokenB, tokenA);
+        PoolKey memory poolKey = PoolKey(tokenA, tokenB, fee);
+        FullRangeLibrary.Vars memory vars = FullRangeLibrary.getVars(poolKey, getPair, factory);
+        _createPair(poolKey, vars);
+        pool = vars.pool;
+        pair = vars.pair;
     }
 
     function addLiquidity(
@@ -119,23 +99,21 @@ contract FullRange is IFullRange {
         shares = _mint(vars, to, liquidity);
     }
 
-    // TODO: Mint callback fn
-    function _addLiquidity(
-        PoolKey memory poolKey,
-        FullRangeLibrary.Vars memory vars,
-        address from,
-        uint128 liquidity
-    ) internal returns (uint256 amount0, uint256 amount1) {
-        if (liquidity != 0) {
-            return
-                IUniswapV3Pool(vars.pool).mint(
-                    address(this),
-                    vars.tickLower,
-                    vars.tickUpper,
-                    liquidity,
-                    abi.encode(MintCallbackData(poolKey, from))
-                );
-        }
+    function collect(PoolKey memory poolKey)
+        external
+        returns (
+            uint128 liquidity,
+            uint256 amount0,
+            uint256 amount1
+        )
+    {
+        FullRangeLibrary.sortParams(poolKey);
+        FullRangeLibrary.Vars memory vars = FullRangeLibrary.getVars(poolKey, getPair, factory);
+        Oracle memory _oracle = oracle;
+        require(_canCollect(_oracle, vars), "Cannot collect");
+        _updateOracle(vars, _oracle.observationCardinality);
+        (liquidity, amount0, amount1) = _collect(vars);
+        (amount0, amount1) = _addLiquidity(poolKey, vars, address(this), liquidity);
     }
 
     function removeLiquidity(
@@ -161,6 +139,26 @@ contract FullRange is IFullRange {
         require(amount0 >= amountAMin && amount1 >= amountBMin, "Price slippage check");
     }
 
+    function uniswapV3MintCallback(
+        uint256 amount0Owed,
+        uint256 amount1Owed,
+        bytes calldata data
+    ) external {
+        MintCallbackData memory decoded = abi.decode(data, (MintCallbackData));
+        require(
+            msg.sender ==
+                PoolAddress.computeAddress(
+                    factory,
+                    decoded.poolKey.tokenA,
+                    decoded.poolKey.tokenB,
+                    decoded.poolKey.fee
+                ),
+            "Invalid sender"
+        );
+        if (amount0Owed > 0) _pay(decoded.poolKey.tokenA, decoded.payer, msg.sender, amount0Owed);
+        if (amount1Owed > 0) _pay(decoded.poolKey.tokenB, decoded.payer, msg.sender, amount1Owed);
+    }
+
     function _createPair(PoolKey memory poolKey, FullRangeLibrary.Vars memory vars) internal {
         if (vars.pair == address(0)) {
             require(vars.sqrtPriceX96 != 0, "Pool uninitialized");
@@ -179,36 +177,22 @@ contract FullRange is IFullRange {
         }
     }
 
-    function _removeLiquidity(
+    function _addLiquidity(
+        PoolKey memory poolKey,
         FullRangeLibrary.Vars memory vars,
-        address to,
+        address from,
         uint128 liquidity
     ) internal returns (uint256 amount0, uint256 amount1) {
-        (amount0, amount1) = IUniswapV3Pool(vars.pool).burn(vars.tickLower, vars.tickUpper, liquidity);
-        (amount0, amount1) = IUniswapV3Pool(vars.pool).collect(
-            to,
-            vars.tickLower,
-            vars.tickUpper,
-            uint128(amount0),
-            uint128(amount1)
-        );
-    }
-
-    function collect(PoolKey memory poolKey)
-        external
-        returns (
-            uint128 liquidity,
-            uint256 amount0,
-            uint256 amount1
-        )
-    {
-        FullRangeLibrary.sortParams(poolKey);
-        FullRangeLibrary.Vars memory vars = FullRangeLibrary.getVars(poolKey, getPair, factory);
-        Oracle memory _oracle = oracle;
-        require(_canCollect(_oracle, vars), "Cannot collect");
-        _updateOracle(vars, _oracle.observationCardinality);
-        (liquidity, amount0, amount1) = _collect(vars);
-        (amount0, amount1) = _addLiquidity(poolKey, vars, address(this), liquidity);
+        if (liquidity != 0) {
+            return
+                IUniswapV3Pool(vars.pool).mint(
+                    address(this),
+                    vars.tickLower,
+                    vars.tickUpper,
+                    liquidity,
+                    abi.encode(MintCallbackData(poolKey, from))
+                );
+        }
     }
 
     function _collect(FullRangeLibrary.Vars memory vars)
@@ -237,18 +221,19 @@ contract FullRange is IFullRange {
             );
     }
 
-    function _canCollect(Oracle memory _oracle, FullRangeLibrary.Vars memory vars) internal view returns (bool) {
-        int24 twap = OracleLibrary.consult(
-            vars.pool,
-            _oracle.secondsAgo,
-            vars.tick,
-            vars.observationIndex,
-            vars.observationCardinality
+    function _removeLiquidity(
+        FullRangeLibrary.Vars memory vars,
+        address to,
+        uint128 liquidity
+    ) internal returns (uint256 amount0, uint256 amount1) {
+        (amount0, amount1) = IUniswapV3Pool(vars.pool).burn(vars.tickLower, vars.tickUpper, liquidity);
+        (amount0, amount1) = IUniswapV3Pool(vars.pool).collect(
+            to,
+            vars.tickLower,
+            vars.tickUpper,
+            uint128(amount0),
+            uint128(amount1)
         );
-        if ((vars.tick > twap ? vars.tick - twap : twap - vars.tick) > _oracle.maxTickDeviation) {
-            return false;
-        }
-        return true;
     }
 
     function _mint(
@@ -283,16 +268,30 @@ contract FullRange is IFullRange {
         FullRangePair(vars.pair).burn(from, shares);
     }
 
-    function createPair(
-        address tokenA,
-        address tokenB,
-        uint24 fee
-    ) external returns (address pair, address pool) {
-        if (tokenA > tokenB) (tokenA, tokenB) = (tokenB, tokenA);
-        PoolKey memory poolKey = PoolKey(tokenA, tokenB, fee);
-        FullRangeLibrary.Vars memory vars = FullRangeLibrary.getVars(poolKey, getPair, factory);
-        _createPair(poolKey, vars);
-        pool = vars.pool;
-        pair = vars.pair;
+    function _pay(
+        address token,
+        address payer,
+        address recipient,
+        uint256 value
+    ) internal {
+        if (payer == address(this)) {
+            TransferHelper.safeTransfer(token, recipient, value);
+        } else {
+            TransferHelper.safeTransferFrom(token, payer, recipient, value);
+        }
+    }
+
+    function _canCollect(Oracle memory _oracle, FullRangeLibrary.Vars memory vars) internal view returns (bool) {
+        int24 twap = OracleLibrary.consult(
+            vars.pool,
+            _oracle.secondsAgo,
+            vars.tick,
+            vars.observationIndex,
+            vars.observationCardinality
+        );
+        if ((vars.tick > twap ? vars.tick - twap : twap - vars.tick) > _oracle.maxTickDeviation) {
+            return false;
+        }
+        return true;
     }
 }
