@@ -64,22 +64,26 @@ contract FullRange {
             uint256
         )
     {
-        if (poolKey.token0 > poolKey.token1)
-            (poolKey.token0, poolKey.token1, amountADesired, amountBDesired, amountAMin, amountBMin) = (
-                poolKey.token1,
-                poolKey.token0,
-                amountBDesired,
-                amountADesired,
-                amountBMin,
-                amountAMin
-            );
+        if (poolKey.token0 > poolKey.token1) {
+            (poolKey.token0, poolKey.token1) = (poolKey.token1, poolKey.token0);
+            return (amountBDesired, amountADesired, amountBMin, amountAMin);
+        }
+        return (amountADesired, amountBDesired, amountAMin, amountBMin);
     }
 
     struct LocalVars {
         address pair;
         address pool;
+        uint160 sqrtPriceX96;
+        uint16 observationCardinalityNext;
+        int24 tick;
         int24 tickLower;
         int24 tickUpper;
+    }
+
+    modifier checkDeadline(uint256 deadline) {
+        require(block.timestamp <= deadline, "Transaction too old");
+        _;
     }
 
     function addLiquidity(
@@ -88,9 +92,11 @@ contract FullRange {
         uint256 amountBDesired,
         uint256 amountAMin,
         uint256 amountBMin,
-        address to
+        address to,
+        uint256 deadline
     )
         external
+        checkDeadline(deadline)
         returns (
             uint128 liquidity,
             uint256 amount0,
@@ -105,20 +111,16 @@ contract FullRange {
             amountAMin,
             amountBMin
         );
-        LocalVars memory vars;
-        (vars.pair, vars.pool) = _createPair(poolKey);
-        (vars.tickLower, vars.tickUpper) = TickMath.getTicks(
-            IUniswapV3Factory(factory).feeAmountTickSpacing(poolKey.fee)
-        );
-        (uint160 sqrtPriceX96, , , , , , ) = IUniswapV3Pool(vars.pool).slot0();
+        LocalVars memory vars = _getVars(poolKey);
+        _createPair(poolKey, vars);
         liquidity = LiquidityAmounts.getLiquidityForAmounts(
-            sqrtPriceX96,
+            vars.sqrtPriceX96,
             TickMath.getSqrtRatioAtTick(vars.tickLower),
             TickMath.getSqrtRatioAtTick(vars.tickUpper),
             amountADesired,
             amountBDesired
         );
-        (amount0, amount1) = _mintLiquidity(poolKey, vars, msg.sender, liquidity);
+        (amount0, amount1) = _addLiquidity(poolKey, vars, msg.sender, liquidity);
         require(amount0 >= amountAMin && amount1 >= amountBMin, "Price slippage check");
         shares = _mint(vars, to, liquidity);
     }
@@ -137,7 +139,7 @@ contract FullRange {
     }
 
     // TODO: Mint callback fn
-    function _mintLiquidity(
+    function _addLiquidity(
         PoolAddress.PoolKey memory poolKey,
         LocalVars memory vars,
         address from,
@@ -153,59 +155,84 @@ contract FullRange {
             );
     }
 
-    struct RemoveLiquidityParams {
-        address tokenA;
-        address tokenB;
-        uint24 fee;
-        uint256 shares;
-        uint256 amountAMin;
-        uint256 amountBMin;
-        address to;
+    function sortParams(
+        PoolAddress.PoolKey memory poolKey,
+        uint256 amountAMin,
+        uint256 amountBMin
+    ) internal pure returns (uint256, uint256) {
+        if (poolKey.token0 > poolKey.token1) {
+            (poolKey.token0, poolKey.token1) = (poolKey.token1, poolKey.token0);
+            return (amountBMin, amountAMin);
+        }
+        return (amountAMin, amountBMin);
     }
 
-    function sortParams(RemoveLiquidityParams memory params) internal pure {
-        if (params.tokenA > params.tokenB)
-            (params.tokenA, params.tokenB, params.amountAMin, params.amountBMin) = (
-                params.tokenB,
-                params.tokenA,
-                params.amountBMin,
-                params.amountAMin
-            );
-    }
-
-    function removeLiquidity(RemoveLiquidityParams memory params)
+    function removeLiquidity(
+        PoolAddress.PoolKey memory poolKey,
+        uint256 shares,
+        uint256 amountAMin,
+        uint256 amountBMin,
+        address to,
+        uint256 deadline
+    )
         external
+        checkDeadline(deadline)
         returns (
             uint128 liquidity,
             uint256 amount0,
             uint256 amount1
         )
     {
-        sortParams(params);
-        (address pair, address pool) = PoolAddress.getPair(getPair, factory, params.tokenA, params.tokenB, params.fee);
-        (int24 tickLower, int24 tickUpper) = TickMath.getTicks(
-            IUniswapV3Factory(factory).feeAmountTickSpacing(params.fee)
+        sortParams(poolKey, amountAMin, amountBMin);
+        LocalVars memory vars = _getVars(poolKey);
+        _updateOracle(vars, oracle.observationCardinality);
+        liquidity = _burn(vars, msg.sender, shares);
+        (amount0, amount1) = _removeLiquidity(vars, to, liquidity);
+        require(amount0 >= amountAMin && amount1 >= amountBMin, "Price slippage check");
+    }
+
+    function _getVars(PoolAddress.PoolKey memory poolKey) internal view returns (LocalVars memory vars) {
+        vars.pool = PoolAddress.computeAddress(factory, poolKey.token0, poolKey.token1, poolKey.fee);
+        vars.pair = getPair[vars.pool];
+        (vars.tickLower, vars.tickUpper) = TickMath.getTicks(
+            IUniswapV3Factory(factory).feeAmountTickSpacing(poolKey.fee)
         );
-        liquidity = _burn(pair, pool, msg.sender, params.shares, tickLower, tickUpper);
-        (amount0, amount1) = _removeLiquidity(params, pool, liquidity, tickLower, tickUpper);
+        (vars.sqrtPriceX96, vars.tick, , , vars.observationCardinalityNext, , ) = IUniswapV3Pool(vars.pool).slot0();
+    }
+
+    function _createPair(PoolAddress.PoolKey memory poolKey, LocalVars memory vars) internal returns (bool created) {
+        if (vars.pair == address(0)) {
+            require(vars.sqrtPriceX96 != 0, "Pool uninitialized");
+            vars.pair = address(
+                new FullRangePair{salt: keccak256(abi.encode(poolKey.token0, poolKey.token1, poolKey.fee))}()
+            );
+            getPool[vars.pair] = vars.pool;
+            getPair[vars.pool] = vars.pair;
+            created = true;
+            _updateOracle(vars, oracle.observationCardinality);
+        }
+    }
+
+    function _updateOracle(LocalVars memory vars, uint16 observationCardinality) internal returns (bool updated) {
+        if (vars.observationCardinalityNext < observationCardinality) {
+            IUniswapV3Pool(vars.pool).increaseObservationCardinalityNext(vars.observationCardinalityNext);
+            updated = true;
+        }
     }
 
     function _removeLiquidity(
-        RemoveLiquidityParams memory params,
-        address pool,
-        uint128 liquidity,
-        int24 tickLower,
-        int24 tickUpper
+        LocalVars memory vars,
+        address to,
+        uint128 liquidity
     ) internal returns (uint256 amount0, uint256 amount1) {
-        (amount0, amount1) = IUniswapV3Pool(pool).burn(tickLower, tickUpper, liquidity);
-        (amount0, amount1) = IUniswapV3Pool(pool).collect(
-            params.to,
-            tickLower,
-            tickUpper,
+        (amount0, amount1) = IUniswapV3Pool(vars.pool).burn(vars.tickLower, vars.tickUpper, liquidity);
+        (amount0, amount1) = IUniswapV3Pool(vars.pool).collect(
+            to,
+            vars.tickLower,
+            vars.tickUpper,
             uint128(amount0),
             uint128(amount1)
         );
-        require(amount0 >= params.amountAMin && amount1 >= params.amountBMin, "Price slippage check");
     }
 
     function collect(
@@ -306,21 +333,18 @@ contract FullRange {
     // }
 
     function _burn(
-        address pair,
-        address pool,
+        LocalVars memory vars,
         address from,
-        uint256 shares,
-        int24 tickLower,
-        int24 tickUpper
+        uint256 shares
     ) internal returns (uint128 liquidity) {
-        (uint128 totalLiquidity, , , , ) = IUniswapV3Pool(pool).positions(
-            keccak256(abi.encodePacked(address(this), tickLower, tickUpper))
+        (uint128 totalLiquidity, , , , ) = IUniswapV3Pool(vars.pool).positions(
+            keccak256(abi.encodePacked(address(this), vars.tickLower, vars.tickUpper))
         );
-        uint256 _liquidity = (shares * totalLiquidity) / FullRangePair(pair).totalSupply();
+        uint256 _liquidity = (shares * totalLiquidity) / FullRangePair(vars.pair).totalSupply();
         // SafeCast to uint128
         require(_liquidity <= type(uint128).max);
         liquidity = uint128(_liquidity);
-        FullRangePair(pair).burn(from, shares);
+        FullRangePair(vars.pair).burn(from, shares);
     }
 
     // removeLiquidity and removeLiquidityShares
