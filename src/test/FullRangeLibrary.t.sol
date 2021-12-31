@@ -28,6 +28,29 @@ contract FullRangeLibraryTest is DSTest {
         fullRangeLibrary = new MockFullRangeLibrary();
     }
 
+    function testSortParams() public {
+        address tokenA = address(0);
+        address tokenB = address(0);
+        IFullRange.PoolKey memory poolKey = IFullRange.PoolKey(tokenA, tokenB, 3000);
+        FullRangeLibrary.sortParams(poolKey);
+        assertEq(poolKey.tokenA, tokenA);
+        assertEq(poolKey.tokenB, tokenB);
+
+        tokenA = address(0);
+        tokenB = address(1);
+        poolKey = IFullRange.PoolKey(tokenA, tokenB, 3000);
+        FullRangeLibrary.sortParams(poolKey);
+        assertEq(poolKey.tokenA, tokenA);
+        assertEq(poolKey.tokenB, tokenB);
+
+        tokenA = address(1);
+        tokenB = address(0);
+        poolKey = IFullRange.PoolKey(tokenA, tokenB, 3000);
+        FullRangeLibrary.sortParams(poolKey);
+        assertEq(poolKey.tokenA, tokenB);
+        assertEq(poolKey.tokenB, tokenA);
+    }
+
     function testSortParams(address tokenA, address tokenB) public {
         IFullRange.PoolKey memory poolKey = IFullRange.PoolKey(tokenA, tokenB, 3000);
         FullRangeLibrary.sortParams(poolKey);
