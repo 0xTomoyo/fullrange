@@ -238,7 +238,13 @@ contract FullRange is IFullRange {
     }
 
     function _canCollect(Oracle memory _oracle, FullRangeLibrary.Vars memory vars) internal view returns (bool) {
-        int24 twap = OracleLibrary.consult(vars, _oracle.secondsAgo);
+        int24 twap = OracleLibrary.consult(
+            vars.pool,
+            _oracle.secondsAgo,
+            vars.tick,
+            vars.observationIndex,
+            vars.observationCardinality
+        );
         if ((vars.tick > twap ? vars.tick - twap : twap - vars.tick) > _oracle.maxTickDeviation) {
             return false;
         }
@@ -277,22 +283,16 @@ contract FullRange is IFullRange {
         FullRangePair(vars.pair).burn(from, shares);
     }
 
-    // removeLiquidity and removeLiquidityShares
-
-    // TODO: separate into external and internal
     function createPair(
         address tokenA,
         address tokenB,
         uint24 fee
-    ) public returns (address pair, address pool) {
-        pool = IUniswapV3Factory(factory).getPool(tokenA, tokenB, fee);
-        pair = getPair[pool];
-        if (pair == address(0)) {
-            require(pool != address(0), "Pool not deployed");
-            if (tokenA > tokenB) (tokenA, tokenB) = (tokenB, tokenA);
-            pair = address(new FullRangePair{salt: keccak256(abi.encode(tokenA, tokenB, fee))}());
-            getPool[pair] = pool;
-            getPair[pool] = pair;
-        }
+    ) external returns (address pair, address pool) {
+        if (tokenA > tokenB) (tokenA, tokenB) = (tokenB, tokenA);
+        PoolKey memory poolKey = PoolKey(tokenA, tokenB, fee);
+        FullRangeLibrary.Vars memory vars = FullRangeLibrary.getVars(poolKey, getPair, factory);
+        _createPair(poolKey, vars);
+        pool = vars.pool;
+        pair = vars.pair;
     }
 }
