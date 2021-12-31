@@ -2,13 +2,10 @@
 pragma solidity ^0.8.10;
 
 import {IFullRange} from "./interfaces/IFullRange.sol";
+import {IFullRangePair} from "./interfaces/IFullRangePair.sol";
 
 /// @author Adapted from Rari-Capital https://github.com/Rari-Capital/solmate/blob/main/src/erc20/ERC20.sol
-contract FullRangePair {
-    event Transfer(address indexed from, address indexed to, uint256 amount);
-
-    event Approval(address indexed owner, address indexed spender, uint256 amount);
-
+contract FullRangePair is IFullRangePair {
     uint256 public totalSupply;
 
     mapping(address => uint256) public balanceOf;
