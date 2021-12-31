@@ -2,9 +2,14 @@
 pragma solidity >=0.8.0;
 
 import {DSTest} from "ds-test/test.sol";
+import {IUniswapV3Factory} from "@uniswap/v3-core/contracts/interfaces/IUniswapV3Factory.sol";
+import {IUniswapV3Pool} from "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
+import {FullRangePair} from "../FullRangePair.sol";
 import {IFullRange} from "../interfaces/IFullRange.sol";
 import {FullRangeLibrary} from "../libraries/FullRangeLibrary.sol";
 import {PoolAddress} from "../libraries/PoolAddress.sol";
+import {TickMath} from "../libraries/TickMath.sol";
+import {FACTORY} from "./utils/Constants.sol";
 
 contract MockFullRangeLibrary {
     mapping(address => address) public getPair;
@@ -26,6 +31,35 @@ contract FullRangeLibraryTest is DSTest {
 
     function setUp() public {
         fullRangeLibrary = new MockFullRangeLibrary();
+    }
+
+    function testGetVars() public {
+        IUniswapV3Pool pool = IUniswapV3Pool(0x8ad599c3A0ff1De082011EFDDc58f1908eb6e6D8);
+        IFullRange.PoolKey memory poolKey = IFullRange.PoolKey(pool.token0(), pool.token1(), pool.fee());
+        (
+            uint160 sqrtPriceX96,
+            int24 tick,
+            uint16 observationIndex,
+            uint16 observationCardinality,
+            uint16 observationCardinalityNext,
+            ,
+
+        ) = pool.slot0();
+        (int24 tickLower, int24 tickUpper) = TickMath.getTicks(
+            IUniswapV3Factory(FACTORY).feeAmountTickSpacing(poolKey.fee)
+        );
+        FullRangePair pair = new FullRangePair();
+        FullRangeLibrary.Vars memory vars = fullRangeLibrary.getVars(poolKey, address(pair), FACTORY);
+
+        assertEq(vars.pair, address(pair));
+        assertEq(vars.pool, address(pool));
+        assertEq(vars.tickLower, tickLower);
+        assertEq(vars.tickUpper, tickUpper);
+        assertEq(vars.sqrtPriceX96, sqrtPriceX96);
+        assertEq(vars.tick, tick);
+        assertEq(vars.observationIndex, observationIndex);
+        assertEq(vars.observationCardinality, observationCardinality);
+        assertEq(vars.observationCardinalityNext, observationCardinalityNext);
     }
 
     function testSortParams() public {
