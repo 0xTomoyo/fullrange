@@ -12,8 +12,11 @@ import {IFullRange} from "./interfaces/IFullRange.sol";
 import {FullRangeLibrary} from "./libraries/FullRangeLibrary.sol";
 import {TransferHelper} from "./libraries/TransferHelper.sol";
 import {PairDescriptor} from "./libraries/PairDescriptor.sol";
+import {SafeCast} from "./libraries/SafeCast.sol";
 
 contract FullRange is IFullRange {
+    using SafeCast for uint256;
+
     struct Oracle {
         int24 maxTickDeviation;
         uint32 secondsAgo;
@@ -106,7 +109,7 @@ contract FullRange is IFullRange {
         require(_canCollect(_oracle, vars), "Cannot collect");
         _updateOracle(vars, _oracle.observationCardinality);
         liquidity = _collect(vars);
-        if (liquidity != 0) _addLiquidity(poolKey, vars, address(this), liquidity);
+        _addLiquidity(poolKey, vars, address(this), liquidity);
     }
 
     function removeLiquidity(
@@ -224,8 +227,8 @@ contract FullRange is IFullRange {
             to,
             vars.tickLower,
             vars.tickUpper,
-            uint128(amount0),
-            uint128(amount1)
+            amount0.toUint128(),
+            amount1.toUint128()
         );
     }
 
@@ -254,10 +257,7 @@ contract FullRange is IFullRange {
         (uint128 totalLiquidity, , , , ) = IUniswapV3Pool(vars.pool).positions(
             keccak256(abi.encodePacked(address(this), vars.tickLower, vars.tickUpper))
         );
-        uint256 _liquidity = (shares * totalLiquidity) / FullRangePair(vars.pair).totalSupply();
-        // SafeCast to uint128
-        require(_liquidity <= type(uint128).max);
-        liquidity = uint128(_liquidity);
+        liquidity = ((shares * totalLiquidity) / FullRangePair(vars.pair).totalSupply()).toUint128();
         FullRangePair(vars.pair).burn(from, shares);
     }
 
