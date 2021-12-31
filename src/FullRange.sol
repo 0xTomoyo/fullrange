@@ -24,11 +24,11 @@ contract FullRange is IFullRange {
         address payer;
     }
 
-    address public immutable factory;
+    address public immutable override factory;
 
-    address public immutable weth;
+    address public immutable override weth;
 
-    Oracle public oracle;
+    Oracle public override oracle;
 
     mapping(address => address) public override getPool;
 
@@ -50,7 +50,7 @@ contract FullRange is IFullRange {
         address tokenA,
         address tokenB,
         uint24 fee
-    ) external returns (address pair, address pool) {
+    ) external override returns (address pair, address pool) {
         if (tokenA > tokenB) (tokenA, tokenB) = (tokenB, tokenA);
         PoolKey memory poolKey = PoolKey(tokenA, tokenB, fee);
         FullRangeLibrary.Vars memory vars = FullRangeLibrary.getVars(poolKey, getPair, factory);
@@ -101,6 +101,7 @@ contract FullRange is IFullRange {
 
     function collect(PoolKey memory poolKey)
         external
+        override
         returns (
             uint128 liquidity,
             uint256 amount0,
@@ -125,6 +126,7 @@ contract FullRange is IFullRange {
         uint256 deadline
     )
         external
+        override
         checkDeadline(deadline)
         returns (
             uint128 liquidity,
@@ -143,7 +145,7 @@ contract FullRange is IFullRange {
         uint256 amount0Owed,
         uint256 amount1Owed,
         bytes calldata data
-    ) external {
+    ) external override {
         MintCallbackData memory decoded = abi.decode(data, (MintCallbackData));
         require(
             msg.sender ==
