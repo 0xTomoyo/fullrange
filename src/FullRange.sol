@@ -99,21 +99,14 @@ contract FullRange is IFullRange {
         shares = _mint(vars, to, liquidity);
     }
 
-    function collect(PoolKey memory poolKey)
-        external
-        returns (
-            uint128 liquidity,
-            uint256 amount0,
-            uint256 amount1
-        )
-    {
+    function collect(PoolKey memory poolKey) external returns (uint128 liquidity) {
         FullRangeLibrary.sortParams(poolKey);
         FullRangeLibrary.Vars memory vars = FullRangeLibrary.getVars(poolKey, getPair, factory);
         Oracle memory _oracle = oracle;
         require(_canCollect(_oracle, vars), "Cannot collect");
         _updateOracle(vars, _oracle.observationCardinality);
-        (liquidity, amount0, amount1) = _collect(vars);
-        (amount0, amount1) = liquidity != 0 ? _addLiquidity(poolKey, vars, address(this), liquidity) : (0, 0);
+        liquidity = _collect(vars);
+        if (liquidity != 0) _addLiquidity(poolKey, vars, address(this), liquidity);
     }
 
     function removeLiquidity(
@@ -203,30 +196,22 @@ contract FullRange is IFullRange {
         }
     }
 
-    function _collect(FullRangeLibrary.Vars memory vars)
-        internal
-        returns (
-            uint128 liquidity,
-            uint256 amount0,
-            uint256 amount1
-        )
-    {
+    function _collect(FullRangeLibrary.Vars memory vars) internal returns (uint128 liquidity) {
         IUniswapV3Pool(vars.pool).burn(vars.tickLower, vars.tickUpper, 0);
-        (amount0, amount1) = IUniswapV3Pool(vars.pool).collect(
+        (uint256 amount0, uint256 amount1) = IUniswapV3Pool(vars.pool).collect(
             address(this),
             vars.tickLower,
             vars.tickUpper,
             type(uint128).max,
             type(uint128).max
         );
-        return
-            LiquidityAmounts.getLiquidityAmountsForAmounts(
-                vars.sqrtPriceX96,
-                TickMath.getSqrtRatioAtTick(vars.tickLower),
-                TickMath.getSqrtRatioAtTick(vars.tickUpper),
-                amount0,
-                amount1
-            );
+        liquidity = LiquidityAmounts.getLiquidityForAmounts(
+            vars.sqrtPriceX96,
+            TickMath.getSqrtRatioAtTick(vars.tickLower),
+            TickMath.getSqrtRatioAtTick(vars.tickUpper),
+            amount0,
+            amount1
+        );
     }
 
     function _removeLiquidity(

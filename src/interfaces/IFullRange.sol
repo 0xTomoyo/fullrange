@@ -48,13 +48,7 @@ interface IFullRange {
             uint256 shares
         );
 
-    function collect(PoolKey memory poolKey)
-        external
-        returns (
-            uint128 liquidity,
-            uint256 amount0,
-            uint256 amount1
-        );
+    function collect(PoolKey memory poolKey) external returns (uint128 liquidity);
 
     function removeLiquidity(
         PoolKey memory poolKey,
