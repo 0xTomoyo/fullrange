@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity ^0.8.10;
 
-import {PairDescriptor} from "./libraries/PairDescriptor.sol";
+import {IFullRange} from "./interfaces/IFullRange.sol";
 
 /// @author Adapted from Rari-Capital https://github.com/Rari-Capital/solmate/blob/main/src/erc20/ERC20.sol
 contract FullRangePair {
@@ -119,11 +119,11 @@ contract FullRangePair {
     }
 
     function symbol() external view returns (string memory) {
-        return PairDescriptor.constructSymbol(fullRange);
+        return IFullRange(fullRange).constructSymbol(address(this));
     }
 
     function name() external view returns (string memory) {
-        return PairDescriptor.constructName(fullRange);
+        return IFullRange(fullRange).constructName(address(this));
     }
 
     function DOMAIN_SEPARATOR() public view returns (bytes32) {

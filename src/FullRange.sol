@@ -11,6 +11,7 @@ import {FullRangePair} from "./FullRangePair.sol";
 import {IFullRange} from "./interfaces/IFullRange.sol";
 import {FullRangeLibrary} from "./libraries/FullRangeLibrary.sol";
 import {TransferHelper} from "./libraries/TransferHelper.sol";
+import {PairDescriptor} from "./libraries/PairDescriptor.sol";
 
 contract FullRange is IFullRange {
     struct Oracle {
@@ -114,7 +115,7 @@ contract FullRange is IFullRange {
         require(_canCollect(_oracle, vars), "Cannot collect");
         _updateOracle(vars, _oracle.observationCardinality);
         (liquidity, amount0, amount1) = _collect(vars);
-        (amount0, amount1) = _addLiquidity(poolKey, vars, address(this), liquidity);
+        (amount0, amount1) = liquidity != 0 ? _addLiquidity(poolKey, vars, address(this), liquidity) : (0, 0);
     }
 
     function removeLiquidity(
@@ -159,6 +160,14 @@ contract FullRange is IFullRange {
         );
         if (amount0Owed > 0) _pay(decoded.poolKey.tokenA, decoded.payer, msg.sender, amount0Owed);
         if (amount1Owed > 0) _pay(decoded.poolKey.tokenB, decoded.payer, msg.sender, amount1Owed);
+    }
+
+    function constructSymbol(address pair) external view returns (string memory) {
+        return PairDescriptor.constructSymbol(getPool[pair]);
+    }
+
+    function constructName(address pair) external view returns (string memory) {
+        return PairDescriptor.constructName(getPool[pair]);
     }
 
     function _createPair(PoolKey memory poolKey, FullRangeLibrary.Vars memory vars) internal {

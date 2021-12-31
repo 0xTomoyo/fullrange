@@ -5,20 +5,6 @@ import {DSTest} from "ds-test/test.sol";
 import {PairDescriptor} from "../libraries/PairDescriptor.sol";
 
 contract MockPairDescriptor {
-    mapping(address => address) public getPool;
-
-    function constructName(address pool) external returns (string memory name) {
-        getPool[address(this)] = pool;
-        name = PairDescriptor.constructName(address(this));
-        getPool[address(this)] = address(0);
-    }
-
-    function constructSymbol(address pool) external returns (string memory symbol) {
-        getPool[address(this)] = pool;
-        symbol = PairDescriptor.constructSymbol(address(this));
-        getPool[address(this)] = address(0);
-    }
-
     function toAsciiString(address addr, uint256 len) external pure returns (string memory) {
         return PairDescriptor.toAsciiString(addr, len);
     }
@@ -79,8 +65,8 @@ contract PairDescriptorTest is DSTest {
         ];
         for (uint256 i = 0; i < metadataTestCases.length; i++) {
             MetadataTestCase memory metadataTestCase = metadataTestCases[i];
-            assertEq(pairDescriptor.constructSymbol(metadataTestCase.pool), metadataTestCase.symbol);
-            assertEq(pairDescriptor.constructName(metadataTestCase.pool), metadataTestCase.name);
+            assertEq(PairDescriptor.constructSymbol(metadataTestCase.pool), metadataTestCase.symbol);
+            assertEq(PairDescriptor.constructName(metadataTestCase.pool), metadataTestCase.name);
         }
     }
 

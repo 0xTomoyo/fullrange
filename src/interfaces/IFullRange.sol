@@ -76,4 +76,8 @@ interface IFullRange {
         uint256 amount1Owed,
         bytes calldata data
     ) external;
+
+    function constructSymbol(address pair) external view returns (string memory);
+
+    function constructName(address pair) external view returns (string memory);
 }
