@@ -11,11 +11,13 @@ library FullRangeLibrary {
     struct Vars {
         address pair;
         address pool;
-        uint160 sqrtPriceX96;
-        uint16 observationCardinalityNext;
-        int24 tick;
         int24 tickLower;
         int24 tickUpper;
+        uint160 sqrtPriceX96;
+        int24 tick;
+        uint16 observationIndex;
+        uint16 observationCardinality;
+        uint16 observationCardinalityNext;
     }
 
     function getVars(
@@ -28,7 +30,15 @@ library FullRangeLibrary {
         (vars.tickLower, vars.tickUpper) = TickMath.getTicks(
             IUniswapV3Factory(factory).feeAmountTickSpacing(poolKey.fee)
         );
-        (vars.sqrtPriceX96, vars.tick, , , vars.observationCardinalityNext, , ) = IUniswapV3Pool(vars.pool).slot0();
+        (
+            vars.sqrtPriceX96,
+            vars.tick,
+            vars.observationIndex,
+            vars.observationCardinality,
+            vars.observationCardinalityNext,
+            ,
+
+        ) = IUniswapV3Pool(vars.pool).slot0();
     }
 
     function sortParams(IFullRange.PoolKey memory poolKey) internal pure {
