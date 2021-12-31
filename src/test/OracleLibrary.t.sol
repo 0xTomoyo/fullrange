@@ -414,14 +414,86 @@ contract OracleLibraryTest is DSTest {
             [int56(0), 0, 0, 0],
             [uint128(0), 0, 0, 0],
             [false, false, false, false],
-            0,
+            observationIndex,
             false
         );
-
         try oracleLibrary.getBlockStartingTick(address(observations), tick, observationIndex, observationCardinality) {
             fail();
         } catch Error(string memory error) {
             assertEq(error, "NEO");
         }
+
+        tick = 6;
+        observationIndex = 2;
+        observationCardinality = 3;
+        observations = new MockObservations(
+            [uint32(1), 3, 4, 0],
+            [int56(0), 8, 13, 0],
+            [uint128(0), 136112946768375385385349842972707284, 184724713471366594451546215462959885, 0],
+            [true, true, true, false],
+            observationIndex,
+            false
+        );
+        assertEq(
+            OracleLibrary.getBlockStartingTick(address(observations), tick, observationIndex, observationCardinality),
+            tick
+        );
+
+        tick = 4;
+        observationIndex = 0;
+        observationCardinality = 1;
+        observations = new MockObservations(
+            [uint32(1), 0, 0, 0],
+            [int56(8), 0, 0, 0],
+            [uint128(136112946768375385385349842972707284), 0, 0, 0],
+            [true, false, false, false],
+            observationIndex,
+            true
+        );
+        try oracleLibrary.getBlockStartingTick(address(observations), tick, observationIndex, observationCardinality) {
+            fail();
+        } catch Error(string memory error) {
+            assertEq(error, "NEO");
+        }
+
+        tick = 4;
+        observationIndex = 0;
+        observationCardinality = 2;
+        observations = new MockObservations(
+            [uint32(1), 0, 0, 0],
+            [int56(8), 0, 0, 0],
+            [uint128(136112946768375385385349842972707284), 0, 0, 0],
+            [true, false, false, false],
+            observationIndex,
+            true
+        );
+        try oracleLibrary.getBlockStartingTick(address(observations), tick, observationIndex, observationCardinality) {
+            fail();
+        } catch Error(string memory error) {
+            assertEq(error, "ONI");
+        }
+
+        tick = 3;
+        observationIndex = 0;
+        observationCardinality = 3;
+        uint32[4] memory blockTimestamps = [uint32(9), 5, 8, 0];
+        int56[4] memory tickCumulatives = [int56(99), 80, 95, 0];
+        observations = new MockObservations(
+            blockTimestamps,
+            tickCumulatives,
+            [
+                uint128(965320616647837491242414421221086683),
+                839853488995212437053956034406948254,
+                939565063595995342933046073701273770,
+                0
+            ],
+            [true, true, true, false],
+            observationIndex,
+            true
+        );
+        assertEq(
+            OracleLibrary.getBlockStartingTick(address(observations), tick, observationIndex, observationCardinality),
+            (tickCumulatives[0] - tickCumulatives[2]) / int56(uint56(blockTimestamps[0] - blockTimestamps[2]))
+        );
     }
 }
