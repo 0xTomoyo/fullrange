@@ -8,8 +8,10 @@ import {PoolAddress} from "./libraries/PoolAddress.sol";
 import {LiquidityAmounts} from "./libraries/LiquidityAmounts.sol";
 import {OracleLibrary} from "./libraries/OracleLibrary.sol";
 import {FullRangePair} from "./FullRangePair.sol";
+import {IFullRange} from "./interfaces/IFullRange.sol";
+import {FullRangeLibrary} from "./libraries/FullRangeLibrary.sol";
 
-contract FullRange {
+contract FullRange is IFullRange {
     address public immutable factory;
 
     address public immutable weth;
@@ -22,9 +24,9 @@ contract FullRange {
 
     Oracle public oracle;
 
-    mapping(address => address) public getPool;
+    mapping(address => address) public override getPool;
 
-    mapping(address => address) public getPair;
+    mapping(address => address) public override getPair;
 
     constructor(address _factory, address _weth) {
         factory = _factory;
@@ -34,51 +36,8 @@ contract FullRange {
     }
 
     struct MintCallbackData {
-        PoolAddress.PoolKey poolKey;
+        PoolKey poolKey;
         address payer;
-    }
-    struct AddLiquidityParams {
-        address tokenA;
-        address tokenB;
-        uint24 fee;
-        uint256 amountADesired;
-        uint256 amountBDesired;
-        uint256 amountAMin;
-        uint256 amountBMin;
-        address to;
-    }
-
-    function sortParams(
-        PoolAddress.PoolKey memory poolKey,
-        uint256 amountADesired,
-        uint256 amountBDesired,
-        uint256 amountAMin,
-        uint256 amountBMin
-    )
-        internal
-        pure
-        returns (
-            uint256,
-            uint256,
-            uint256,
-            uint256
-        )
-    {
-        if (poolKey.token0 > poolKey.token1) {
-            (poolKey.token0, poolKey.token1) = (poolKey.token1, poolKey.token0);
-            return (amountBDesired, amountADesired, amountBMin, amountAMin);
-        }
-        return (amountADesired, amountBDesired, amountAMin, amountBMin);
-    }
-
-    struct LocalVars {
-        address pair;
-        address pool;
-        uint160 sqrtPriceX96;
-        uint16 observationCardinalityNext;
-        int24 tick;
-        int24 tickLower;
-        int24 tickUpper;
     }
 
     modifier checkDeadline(uint256 deadline) {
@@ -87,7 +46,7 @@ contract FullRange {
     }
 
     function addLiquidity(
-        PoolAddress.PoolKey memory poolKey,
+        PoolKey memory poolKey,
         uint256 amountADesired,
         uint256 amountBDesired,
         uint256 amountAMin,
@@ -96,6 +55,7 @@ contract FullRange {
         uint256 deadline
     )
         external
+        override
         checkDeadline(deadline)
         returns (
             uint128 liquidity,
@@ -104,15 +64,17 @@ contract FullRange {
             uint256 shares
         )
     {
-        (amountADesired, amountBDesired, amountAMin, amountBMin) = sortParams(
+        (amountADesired, amountBDesired, amountAMin, amountBMin) = FullRangeLibrary.sortParams(
             poolKey,
             amountADesired,
             amountBDesired,
             amountAMin,
             amountBMin
         );
-        LocalVars memory vars = _getVars(poolKey);
-        _createPair(poolKey, vars);
+        FullRangeLibrary.Vars memory vars = FullRangeLibrary.getVars(poolKey, getPair, factory);
+        if (_createPair(poolKey, vars)) {
+            _updateOracle(vars, oracle.observationCardinality);
+        }
         liquidity = LiquidityAmounts.getLiquidityForAmounts(
             vars.sqrtPriceX96,
             TickMath.getSqrtRatioAtTick(vars.tickLower),
@@ -125,23 +87,10 @@ contract FullRange {
         shares = _mint(vars, to, liquidity);
     }
 
-    function _createPair(PoolAddress.PoolKey memory poolKey) internal returns (address pair, address pool) {
-        pool = IUniswapV3Factory(factory).getPool(poolKey.token0, poolKey.token1, poolKey.fee);
-        pair = getPair[pool];
-        if (pair == address(0)) {
-            require(pool != address(0), "Pool not deployed");
-            pair = address(
-                new FullRangePair{salt: keccak256(abi.encode(poolKey.token0, poolKey.token1, poolKey.fee))}()
-            );
-            getPool[pair] = pool;
-            getPair[pool] = pair;
-        }
-    }
-
     // TODO: Mint callback fn
     function _addLiquidity(
-        PoolAddress.PoolKey memory poolKey,
-        LocalVars memory vars,
+        PoolKey memory poolKey,
+        FullRangeLibrary.Vars memory vars,
         address from,
         uint128 liquidity
     ) internal returns (uint256 amount0, uint256 amount1) {
@@ -155,20 +104,8 @@ contract FullRange {
             );
     }
 
-    function sortParams(
-        PoolAddress.PoolKey memory poolKey,
-        uint256 amountAMin,
-        uint256 amountBMin
-    ) internal pure returns (uint256, uint256) {
-        if (poolKey.token0 > poolKey.token1) {
-            (poolKey.token0, poolKey.token1) = (poolKey.token1, poolKey.token0);
-            return (amountBMin, amountAMin);
-        }
-        return (amountAMin, amountBMin);
-    }
-
     function removeLiquidity(
-        PoolAddress.PoolKey memory poolKey,
+        PoolKey memory poolKey,
         uint256 shares,
         uint256 amountAMin,
         uint256 amountBMin,
@@ -183,37 +120,30 @@ contract FullRange {
             uint256 amount1
         )
     {
-        sortParams(poolKey, amountAMin, amountBMin);
-        LocalVars memory vars = _getVars(poolKey);
+        FullRangeLibrary.sortParams(poolKey, amountAMin, amountBMin);
+        FullRangeLibrary.Vars memory vars = FullRangeLibrary.getVars(poolKey, getPair, factory);
         _updateOracle(vars, oracle.observationCardinality);
         liquidity = _burn(vars, msg.sender, shares);
         (amount0, amount1) = _removeLiquidity(vars, to, liquidity);
         require(amount0 >= amountAMin && amount1 >= amountBMin, "Price slippage check");
     }
 
-    function _getVars(PoolAddress.PoolKey memory poolKey) internal view returns (LocalVars memory vars) {
-        vars.pool = PoolAddress.computeAddress(factory, poolKey.token0, poolKey.token1, poolKey.fee);
-        vars.pair = getPair[vars.pool];
-        (vars.tickLower, vars.tickUpper) = TickMath.getTicks(
-            IUniswapV3Factory(factory).feeAmountTickSpacing(poolKey.fee)
-        );
-        (vars.sqrtPriceX96, vars.tick, , , vars.observationCardinalityNext, , ) = IUniswapV3Pool(vars.pool).slot0();
-    }
-
-    function _createPair(PoolAddress.PoolKey memory poolKey, LocalVars memory vars) internal returns (bool created) {
+    function _createPair(PoolKey memory poolKey, FullRangeLibrary.Vars memory vars) internal returns (bool created) {
         if (vars.pair == address(0)) {
             require(vars.sqrtPriceX96 != 0, "Pool uninitialized");
             vars.pair = address(
-                new FullRangePair{salt: keccak256(abi.encode(poolKey.token0, poolKey.token1, poolKey.fee))}()
+                new FullRangePair{salt: keccak256(abi.encode(poolKey.tokenA, poolKey.tokenB, poolKey.fee))}()
             );
             getPool[vars.pair] = vars.pool;
             getPair[vars.pool] = vars.pair;
             created = true;
-            _updateOracle(vars, oracle.observationCardinality);
         }
     }
 
-    function _updateOracle(LocalVars memory vars, uint16 observationCardinality) internal returns (bool updated) {
+    function _updateOracle(FullRangeLibrary.Vars memory vars, uint16 observationCardinality)
+        internal
+        returns (bool updated)
+    {
         if (vars.observationCardinalityNext < observationCardinality) {
             IUniswapV3Pool(vars.pool).increaseObservationCardinalityNext(vars.observationCardinalityNext);
             updated = true;
@@ -221,7 +151,7 @@ contract FullRange {
     }
 
     function _removeLiquidity(
-        LocalVars memory vars,
+        FullRangeLibrary.Vars memory vars,
         address to,
         uint128 liquidity
     ) internal returns (uint256 amount0, uint256 amount1) {
@@ -301,7 +231,7 @@ contract FullRange {
     }
 
     function _mint(
-        LocalVars memory vars,
+        FullRangeLibrary.Vars memory vars,
         address to,
         uint128 liquidity
     ) internal returns (uint256 shares) {
@@ -333,7 +263,7 @@ contract FullRange {
     // }
 
     function _burn(
-        LocalVars memory vars,
+        FullRangeLibrary.Vars memory vars,
         address from,
         uint256 shares
     ) internal returns (uint128 liquidity) {

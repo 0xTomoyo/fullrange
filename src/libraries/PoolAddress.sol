@@ -3,12 +3,6 @@ pragma solidity >=0.8.0;
 
 /// @title Provides functions for deriving a pool address from the factory, tokens, and the fee
 library PoolAddress {
-    struct PoolKey {
-        address token0;
-        address token1;
-        uint24 fee;
-    }
-
     bytes32 internal constant POOL_INIT_CODE_HASH = 0xe34f199b19b2b4f47f68442619d555527d244f78a3297ea89325f843f87b8b54;
 
     /// @notice Deterministically computes the pool address given the factory and PoolKey
@@ -38,16 +32,5 @@ library PoolAddress {
                 )
             )
         );
-    }
-
-    function getPair(
-        mapping(address => address) storage self,
-        address factory,
-        address token0,
-        address token1,
-        uint24 fee
-    ) internal view returns (address pair, address pool) {
-        pool = computeAddress(factory, token0, token1, fee);
-        pair = self[pool];
     }
 }
