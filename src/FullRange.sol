@@ -10,6 +10,7 @@ import {OracleLibrary} from "./libraries/OracleLibrary.sol";
 import {FullRangePair} from "./FullRangePair.sol";
 import {IFullRange} from "./interfaces/IFullRange.sol";
 import {FullRangeLibrary} from "./libraries/FullRangeLibrary.sol";
+import {TransferHelper} from "./libraries/TransferHelper.sol";
 
 contract FullRange is IFullRange {
     address public immutable factory;
@@ -38,6 +39,39 @@ contract FullRange is IFullRange {
     struct MintCallbackData {
         PoolKey poolKey;
         address payer;
+    }
+
+    function uniswapV3MintCallback(
+        uint256 amount0Owed,
+        uint256 amount1Owed,
+        bytes calldata data
+    ) external {
+        MintCallbackData memory decoded = abi.decode(data, (MintCallbackData));
+        require(
+            msg.sender ==
+                PoolAddress.computeAddress(
+                    factory,
+                    decoded.poolKey.tokenA,
+                    decoded.poolKey.tokenB,
+                    decoded.poolKey.fee
+                ),
+            "Invalid sender"
+        );
+        if (amount0Owed > 0) _pay(decoded.poolKey.tokenA, decoded.payer, msg.sender, amount0Owed);
+        if (amount1Owed > 0) _pay(decoded.poolKey.tokenB, decoded.payer, msg.sender, amount1Owed);
+    }
+
+    function _pay(
+        address token,
+        address payer,
+        address recipient,
+        uint256 value
+    ) internal {
+        if (payer == address(this)) {
+            TransferHelper.safeTransfer(token, recipient, value);
+        } else {
+            TransferHelper.safeTransferFrom(token, payer, recipient, value);
+        }
     }
 
     modifier checkDeadline(uint256 deadline) {
