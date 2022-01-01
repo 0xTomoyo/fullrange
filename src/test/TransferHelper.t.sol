@@ -118,24 +118,18 @@ contract TransferHelperTest is DSTest {
     }
 
     function testSafeApprove() public {
-        string memory expectedError = "SA";
-
         compliant.setup(true, false);
         TransferHelper.safeApprove(address(compliant), address(0), type(uint256).max);
 
         compliant.setup(false, false);
         try transferHelper.safeApprove(address(compliant), address(0), type(uint256).max) {
             fail();
-        } catch Error(string memory error) {
-            assertEq(error, expectedError);
-        }
+        } catch {}
 
         compliant.setup(false, true);
         try transferHelper.safeApprove(address(compliant), address(0), type(uint256).max) {
             fail();
-        } catch Error(string memory error) {
-            assertEq(error, expectedError);
-        }
+        } catch {}
 
         noncompliant.setup(false);
         TransferHelper.safeApprove(address(noncompliant), address(0), type(uint256).max);
@@ -143,30 +137,22 @@ contract TransferHelperTest is DSTest {
         noncompliant.setup(true);
         try transferHelper.safeApprove(address(noncompliant), address(0), type(uint256).max) {
             fail();
-        } catch Error(string memory error) {
-            assertEq(error, expectedError);
-        }
+        } catch {}
     }
 
     function testSafeTransfer() public {
-        string memory expectedError = "ST";
-
         compliant.setup(true, false);
         TransferHelper.safeTransfer(address(compliant), address(0), type(uint256).max);
 
         compliant.setup(false, false);
         try transferHelper.safeTransfer(address(compliant), address(0), type(uint256).max) {
             fail();
-        } catch Error(string memory error) {
-            assertEq(error, expectedError);
-        }
+        } catch {}
 
         compliant.setup(false, true);
         try transferHelper.safeTransfer(address(compliant), address(0), type(uint256).max) {
             fail();
-        } catch Error(string memory error) {
-            assertEq(error, expectedError);
-        }
+        } catch {}
 
         noncompliant.setup(false);
         TransferHelper.safeTransfer(address(noncompliant), address(0), type(uint256).max);
@@ -174,30 +160,22 @@ contract TransferHelperTest is DSTest {
         noncompliant.setup(true);
         try transferHelper.safeTransfer(address(noncompliant), address(0), type(uint256).max) {
             fail();
-        } catch Error(string memory error) {
-            assertEq(error, expectedError);
-        }
+        } catch {}
     }
 
     function testSafeTransferFrom() public {
-        string memory expectedError = "STF";
-
         compliant.setup(true, false);
         TransferHelper.safeTransferFrom(address(compliant), address(0), address(0), type(uint256).max);
 
         compliant.setup(false, false);
         try transferHelper.safeTransferFrom(address(compliant), address(0), address(0), type(uint256).max) {
             fail();
-        } catch Error(string memory error) {
-            assertEq(error, expectedError);
-        }
+        } catch {}
 
         compliant.setup(false, true);
         try transferHelper.safeTransferFrom(address(compliant), address(0), address(0), type(uint256).max) {
             fail();
-        } catch Error(string memory error) {
-            assertEq(error, expectedError);
-        }
+        } catch {}
 
         noncompliant.setup(false);
         TransferHelper.safeTransferFrom(address(noncompliant), address(0), address(0), type(uint256).max);
@@ -205,9 +183,7 @@ contract TransferHelperTest is DSTest {
         noncompliant.setup(true);
         try transferHelper.safeTransferFrom(address(noncompliant), address(0), address(0), type(uint256).max) {
             fail();
-        } catch Error(string memory error) {
-            assertEq(error, expectedError);
-        }
+        } catch {}
     }
 
     function testSafeTransferETH() public {
